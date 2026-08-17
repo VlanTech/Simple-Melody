@@ -1,0 +1,5 @@
+*.dmg binary
+*.zip binary
+*.wav binary
+*.png binary
+*.SKILL linguist-language=Markdown

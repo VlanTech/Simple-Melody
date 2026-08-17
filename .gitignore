@@ -1,0 +1,25 @@
+.DS_Store
+**/.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+timeline.xctimeline
+playground.xcworkspace
+
+# Local history / agent scratch
+.trae/
+hisver/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~

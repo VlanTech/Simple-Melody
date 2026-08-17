@@ -1,0 +1,574 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A001000000000000000000A1 /* SimpleMelodyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A1 /* SimpleMelodyApp.swift */; };
+		A001000000000000000000A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A2 /* ContentView.swift */; };
+		A001000000000000000000A3 /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A3 /* Song.swift */; };
+		A001000000000000000000A4 /* SectionType.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A4 /* SectionType.swift */; };
+		A001000000000000000000A5 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A5 /* ThemeManager.swift */; };
+		A001000000000000000000A6 /* JapaneseFuriganaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */; };
+		A001000000000000000000A7 /* SongSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A7 /* SongSidebarView.swift */; };
+		A001000000000000000000A8 /* SongEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A8 /* SongEditorView.swift */; };
+		A001000000000000000000A9 /* SectionEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A9 /* SectionEditorView.swift */; };
+		A001000000000000000000AA /* PronunciationEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AA /* PronunciationEditorView.swift */; };
+		A001000000000000000000AB /* SelectableTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AB /* SelectableTextEditor.swift */; };
+		A001000000000000000000AC /* IdeaPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AC /* IdeaPanelView.swift */; };
+		A001000000000000000000AD /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AD /* FlowLayout.swift */; };
+		A001000000000000000000AE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AE /* Assets.xcassets */; };
+		A001000000000000000000AF /* LocalizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C2 /* LocalizationManager.swift */; };
+		A001000000000000000000B0 /* StringLocalized.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C3 /* StringLocalized.swift */; };
+		A001000000000000000000B3 /* SongExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C6 /* SongExporter.swift */; };
+		A001000000000000000000B1 /* SongLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C4 /* SongLanguage.swift */; };
+		A001000000000000000000B2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C5 /* SettingsView.swift */; };
+		A001000000000000000000B4 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C7 /* AppSettings.swift */; };
+		A001000000000000000000B5 /* ChangelogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C8 /* ChangelogView.swift */; };
+		A001000000000000000000B6 /* DeleteConfirmator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C9 /* DeleteConfirmator.swift */; };
+		A001000000000000000000D7 /* SystemSwitchToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D7 /* SystemSwitchToggle.swift */; };
+		A001000000000000000000D8 /* JapaneseFuriganaDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */; };
+		A001000000000000000000D9 /* LyricsPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D9 /* LyricsPreviewView.swift */; };
+		A001000000000000000000E1 /* TrashSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E1 /* TrashSound.swift */; };
+		A001000000000000000000E6 /* Metronome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E6 /* Metronome.swift */; };
+		A001000000000000000000E2 /* UsageGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E2 /* UsageGuideView.swift */; };
+		A001000000000000000000E3 /* SkillExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E3 /* SkillExportView.swift */; };
+		A001000000000000000000E4 /* smelody-lyric-create.SKILL in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E4 /* smelody-lyric-create.SKILL */; };
+		A001000000000000000000E5 /* smelody-music-create.SKILL in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E5 /* smelody-music-create.SKILL */; };
+		A001000000000000000000E7 /* tick.wav in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E7 /* tick.wav */; };
+		A001000000000000000000E8 /* tock.wav in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E8 /* tock.wav */; };
+/* End PBXBuildFile section */
+		A001000000000000000000D5 /* SongFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D5 /* SongFolder.swift */; };
+		A001000000000000000000D6 /* BeatPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D6 /* BeatPreset.swift */; };
+
+/* Begin PBXFileReference section */
+		B001000000000000000000A1 /* SimpleMelodyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleMelodyApp.swift; sourceTree = "<group>"; };
+		B001000000000000000000A2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B001000000000000000000A3 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
+		B001000000000000000000A4 /* SectionType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionType.swift; sourceTree = "<group>"; };
+		B001000000000000000000A5 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseFuriganaEngine.swift; sourceTree = "<group>"; };
+		B001000000000000000000A7 /* SongSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongSidebarView.swift; sourceTree = "<group>"; };
+		B001000000000000000000A8 /* SongEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongEditorView.swift; sourceTree = "<group>"; };
+		B001000000000000000000A9 /* SectionEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditorView.swift; sourceTree = "<group>"; };
+		B001000000000000000000AA /* PronunciationEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationEditorView.swift; sourceTree = "<group>"; };
+		B001000000000000000000AB /* SelectableTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableTextEditor.swift; sourceTree = "<group>"; };
+		B001000000000000000000AC /* IdeaPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPanelView.swift; sourceTree = "<group>"; };
+		B001000000000000000000AD /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		B001000000000000000000AE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = "Resources/Assets.xcassets"; sourceTree = "<group>"; };
+		B001000000000000000000AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B001000000000000000000B0 /* SimpleMelody.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SimpleMelody.entitlements; sourceTree = "<group>"; };
+		B001000000000000000000B1 /* SimpleMelody.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleMelody.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B001000000000000000000C2 /* LocalizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationManager.swift; sourceTree = "<group>"; };
+		B001000000000000000000C3 /* StringLocalized.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringLocalized.swift; sourceTree = "<group>"; };
+		B001000000000000000000C4 /* SongLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongLanguage.swift; sourceTree = "<group>"; };
+		B001000000000000000000C5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B001000000000000000000C6 /* SongExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongExporter.swift; sourceTree = "<group>"; };
+		B001000000000000000000C7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		B001000000000000000000C8 /* ChangelogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogView.swift; sourceTree = "<group>"; };
+		B001000000000000000000C9 /* DeleteConfirmator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConfirmator.swift; sourceTree = "<group>"; };
+		B001000000000000000000D7 /* SystemSwitchToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSwitchToggle.swift; sourceTree = "<group>"; };
+		B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseFuriganaDictionary.swift; sourceTree = "<group>"; };
+		B001000000000000000000D9 /* LyricsPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsPreviewView.swift; sourceTree = "<group>"; };
+		B001000000000000000000E1 /* TrashSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashSound.swift; sourceTree = "<group>"; };
+		B001000000000000000000E6 /* Metronome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Metronome.swift; sourceTree = "<group>"; };
+		B001000000000000000000E2 /* UsageGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageGuideView.swift; sourceTree = "<group>"; };
+		B001000000000000000000E3 /* SkillExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillExportView.swift; sourceTree = "<group>"; };
+		B001000000000000000000E4 /* smelody-lyric-create.SKILL */ = {isa = PBXFileReference; lastKnownFileType = text; path = "smelody-lyric-create.SKILL"; sourceTree = "<group>"; };
+		B001000000000000000000E5 /* smelody-music-create.SKILL */ = {isa = PBXFileReference; lastKnownFileType = text; path = "smelody-music-create.SKILL"; sourceTree = "<group>"; };
+		B001000000000000000000E7 /* tick.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tick.wav"; sourceTree = "<group>"; };
+		B001000000000000000000E8 /* tock.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tock.wav"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+		B001000000000000000000D5 /* SongFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongFolder.swift; sourceTree = "<group>"; };
+		B001000000000000000000D6 /* BeatPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatPreset.swift; sourceTree = "<group>"; };
+
+/* Begin PBXFrameworksBuildPhase section */
+		C001000000000000000000A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D001000000000000000000A1 = {
+			isa = PBXGroup;
+			children = (
+				D001000000000000000000A2 /* SimpleMelody */,
+				D001000000000000000000A3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A2 /* SimpleMelody */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A1 /* SimpleMelodyApp.swift */,
+				D001000000000000000000A7 /* Views */,
+				D001000000000000000000A4 /* Models */,
+				D001000000000000000000A5 /* Theme */,
+				D001000000000000000000A6 /* Engine */,
+				D001000000000000000000AC /* Localization */,
+				D001000000000000000000D0 /* Preferences */,
+				D001000000000000000000AE /* Resources */,
+				B001000000000000000000AE /* Assets.xcassets */,
+				B001000000000000000000AF /* Info.plist */,
+				B001000000000000000000B0 /* SimpleMelody.entitlements */,
+			);
+			path = SimpleMelody;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000B1 /* SimpleMelody.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A3 /* Song.swift */,
+				B001000000000000000000D5 /* SongFolder.swift */,
+				B001000000000000000000D6 /* BeatPreset.swift */,
+				B001000000000000000000A4 /* SectionType.swift */,
+				B001000000000000000000C4 /* SongLanguage.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A5 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A5 /* ThemeManager.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A6 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */,
+				B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */,
+				B001000000000000000000C6 /* SongExporter.swift */,
+				B001000000000000000000E1 /* TrashSound.swift */,
+				B001000000000000000000E6 /* Metronome.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A7 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A2 /* ContentView.swift */,
+				D001000000000000000000A8 /* Sidebar */,
+				D001000000000000000000A9 /* Editor */,
+				D001000000000000000000AA /* Pronunciation */,
+				D001000000000000000000AB /* IdeaPanel */,
+				D001000000000000000000AD /* Settings */,
+				D001000000000000000000E0 /* LyricsPreview */,
+				B001000000000000000000AD /* FlowLayout.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A8 /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A7 /* SongSidebarView.swift */,
+			);
+			path = Sidebar;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000A9 /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000A8 /* SongEditorView.swift */,
+				B001000000000000000000A9 /* SectionEditorView.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000AA /* Pronunciation */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000AA /* PronunciationEditorView.swift */,
+				B001000000000000000000AB /* SelectableTextEditor.swift */,
+			);
+			path = Pronunciation;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000AB /* IdeaPanel */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000AC /* IdeaPanelView.swift */,
+			);
+			path = IdeaPanel;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000AC /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000C2 /* LocalizationManager.swift */,
+				B001000000000000000000C3 /* StringLocalized.swift */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000E0 /* LyricsPreview */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000D9 /* LyricsPreviewView.swift */,
+			);
+			path = LyricsPreview;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000AD /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000C5 /* SettingsView.swift */,
+				B001000000000000000000D7 /* SystemSwitchToggle.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000AE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000E4 /* smelody-lyric-create.SKILL */,
+				B001000000000000000000E5 /* smelody-music-create.SKILL */,
+				B001000000000000000000E7 /* tick.wav */,
+				B001000000000000000000E8 /* tock.wav */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		D001000000000000000000D0 /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				B001000000000000000000C7 /* AppSettings.swift */,
+				B001000000000000000000C8 /* ChangelogView.swift */,
+				B001000000000000000000C9 /* DeleteConfirmator.swift */,
+				B001000000000000000000E2 /* UsageGuideView.swift */,
+				B001000000000000000000E3 /* SkillExportView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E001000000000000000000A1 /* SimpleMelody */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F001000000000000000000A2 /* Build configuration list for PBXNativeTarget "SimpleMelody" */;
+			buildPhases = (
+				G001000000000000000000A1 /* Sources */,
+				C001000000000000000000A1 /* Frameworks */,
+				G001000000000000000000A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SimpleMelody;
+			productName = SimpleMelody;
+			productReference = B001000000000000000000B1 /* SimpleMelody.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		H001000000000000000000A1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					E001000000000000000000A1 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = F001000000000000000000A1 /* Build configuration list for PBXProject "SimpleMelody" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D001000000000000000000A1;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D001000000000000000000A3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E001000000000000000000A1 /* SimpleMelody */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		G001000000000000000000A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A001000000000000000000AE /* Assets.xcassets in Resources */,
+				A001000000000000000000E4 /* smelody-lyric-create.SKILL in Resources */,
+				A001000000000000000000E5 /* smelody-music-create.SKILL in Resources */,
+				A001000000000000000000E7 /* tick.wav in Resources */,
+				A001000000000000000000E8 /* tock.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		G001000000000000000000A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A001000000000000000000A1 /* SimpleMelodyApp.swift in Sources */,
+				A001000000000000000000A2 /* ContentView.swift in Sources */,
+				A001000000000000000000A3 /* Song.swift in Sources */,
+				A001000000000000000000D5 /* SongFolder.swift in Sources */,
+				A001000000000000000000D6 /* BeatPreset.swift in Sources */,
+				A001000000000000000000A4 /* SectionType.swift in Sources */,
+				A001000000000000000000A5 /* ThemeManager.swift in Sources */,
+				A001000000000000000000A6 /* JapaneseFuriganaEngine.swift in Sources */,
+				A001000000000000000000A7 /* SongSidebarView.swift in Sources */,
+				A001000000000000000000A8 /* SongEditorView.swift in Sources */,
+				A001000000000000000000A9 /* SectionEditorView.swift in Sources */,
+				A001000000000000000000AA /* PronunciationEditorView.swift in Sources */,
+				A001000000000000000000AB /* SelectableTextEditor.swift in Sources */,
+				A001000000000000000000AC /* IdeaPanelView.swift in Sources */,
+				A001000000000000000000AD /* FlowLayout.swift in Sources */,
+				A001000000000000000000AF /* LocalizationManager.swift in Sources */,
+				A001000000000000000000B0 /* StringLocalized.swift in Sources */,
+				A001000000000000000000B1 /* SongLanguage.swift in Sources */,
+				A001000000000000000000B2 /* SettingsView.swift in Sources */,
+				A001000000000000000000B3 /* SongExporter.swift in Sources */,
+				A001000000000000000000B4 /* AppSettings.swift in Sources */,
+				A001000000000000000000B5 /* ChangelogView.swift in Sources */,
+				A001000000000000000000B6 /* DeleteConfirmator.swift in Sources */,
+				A001000000000000000000D7 /* SystemSwitchToggle.swift in Sources */,
+				A001000000000000000000D8 /* JapaneseFuriganaDictionary.swift in Sources */,
+				A001000000000000000000D9 /* LyricsPreviewView.swift in Sources */,
+				A001000000000000000000E1 /* TrashSound.swift in Sources */,
+				A001000000000000000000E6 /* Metronome.swift in Sources */,
+				A001000000000000000000E2 /* UsageGuideView.swift in Sources */,
+				A001000000000000000000E3 /* SkillExportView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		I001000000000000000000A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		I001000000000000000000A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		I001000000000000000000A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SimpleMelody/SimpleMelody.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SimpleMelody/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.7.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		I001000000000000000000A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SimpleMelody/SimpleMelody.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SimpleMelody/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.7.10;
+				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F001000000000000000000A1 /* Build configuration list for PBXProject "SimpleMelody" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				I001000000000000000000A1 /* Debug */,
+				I001000000000000000000A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F001000000000000000000A2 /* Build configuration list for PBXNativeTarget "SimpleMelody" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				I001000000000000000000A3 /* Debug */,
+				I001000000000000000000A4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = H001000000000000000000A1 /* Project object */;
+}

@@ -40,6 +40,12 @@
 		A001000000000000000000E5 /* smelody-music-create.SKILL in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E5 /* smelody-music-create.SKILL */; };
 		A001000000000000000000E7 /* tick.wav in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E7 /* tick.wav */; };
 		A001000000000000000000E8 /* tock.wav in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E8 /* tock.wav */; };
+		A001000000000000000000E9 /* SectionDragMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E9 /* SectionDragMath.swift */; };
+		A001000000000000000000EA /* SectionLyricCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EA /* SectionLyricCodec.swift */; };
+		A001000000000000000000EB /* AppReleaseMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EB /* AppReleaseMath.swift */; };
+		A001000000000000000000EC /* ChangelogFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EC /* ChangelogFold.swift */; };
+		A001000000000000000000ED /* SongUICopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000ED /* SongUICopy.swift */; };
+		A001000000000000000000EE /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EE /* UpdateChecker.swift */; };
 /* End PBXBuildFile section */
 		A001000000000000000000D5 /* SongFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D5 /* SongFolder.swift */; };
 		A001000000000000000000D6 /* BeatPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D6 /* BeatPreset.swift */; };
@@ -81,6 +87,12 @@
 		B001000000000000000000E5 /* smelody-music-create.SKILL */ = {isa = PBXFileReference; lastKnownFileType = text; path = "smelody-music-create.SKILL"; sourceTree = "<group>"; };
 		B001000000000000000000E7 /* tick.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tick.wav"; sourceTree = "<group>"; };
 		B001000000000000000000E8 /* tock.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tock.wav"; sourceTree = "<group>"; };
+		B001000000000000000000E9 /* SectionDragMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionDragMath.swift; sourceTree = "<group>"; };
+		B001000000000000000000EA /* SectionLyricCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionLyricCodec.swift; sourceTree = "<group>"; };
+		B001000000000000000000EB /* AppReleaseMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppReleaseMath.swift; sourceTree = "<group>"; };
+		B001000000000000000000EC /* ChangelogFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogFold.swift; sourceTree = "<group>"; };
+		B001000000000000000000ED /* SongUICopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongUICopy.swift; sourceTree = "<group>"; };
+		B001000000000000000000EE /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 		B001000000000000000000D5 /* SongFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongFolder.swift; sourceTree = "<group>"; };
 		B001000000000000000000D6 /* BeatPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatPreset.swift; sourceTree = "<group>"; };
@@ -158,6 +170,11 @@
 				B001000000000000000000C6 /* SongExporter.swift */,
 				B001000000000000000000E1 /* TrashSound.swift */,
 				B001000000000000000000E6 /* Metronome.swift */,
+				B001000000000000000000E9 /* SectionDragMath.swift */,
+				B001000000000000000000EA /* SectionLyricCodec.swift */,
+				B001000000000000000000EB /* AppReleaseMath.swift */,
+				B001000000000000000000EC /* ChangelogFold.swift */,
+				B001000000000000000000ED /* SongUICopy.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -256,6 +273,7 @@
 				B001000000000000000000C9 /* DeleteConfirmator.swift */,
 				B001000000000000000000E2 /* UsageGuideView.swift */,
 				B001000000000000000000E3 /* SkillExportView.swift */,
+				B001000000000000000000EE /* UpdateChecker.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -365,6 +383,12 @@
 				A001000000000000000000E6 /* Metronome.swift in Sources */,
 				A001000000000000000000E2 /* UsageGuideView.swift in Sources */,
 				A001000000000000000000E3 /* SkillExportView.swift in Sources */,
+				A001000000000000000000E9 /* SectionDragMath.swift in Sources */,
+				A001000000000000000000EA /* SectionLyricCodec.swift in Sources */,
+				A001000000000000000000EB /* AppReleaseMath.swift in Sources */,
+				A001000000000000000000EC /* ChangelogFold.swift in Sources */,
+				A001000000000000000000ED /* SongUICopy.swift in Sources */,
+				A001000000000000000000EE /* UpdateChecker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -511,7 +535,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.7.10;
+				MARKETING_VERSION = 1.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -539,7 +563,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.7.10;
+				MARKETING_VERSION = 1.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

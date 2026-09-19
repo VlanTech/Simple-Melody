@@ -200,7 +200,9 @@ Simple Melody 是一款 macOS 原生歌词创作工具，三栏布局：左侧�
 
 **折叠 / 展开**：点击段落头右侧箭头；双击段落标题行也可切换
 
-**v1.7.10 改进**：
+**v1.7.10 Extra 改进**：
+- 开启「段落拖动」后：拖到目标段上半插入其前、下半插入其后；靠近列表顶部自动向上滚动
+- 歌词编辑栏不再把段落编号写入正文（已修复旧版「代码嵌入歌词」）
 - 歌词正文编辑栏高度随内容自动伸缩（短歌词不会浪费空间）
 - 光标在编辑栏时滚动鼠标也能滚外层页面（滚轮穿透）
 - 切换歌曲有丝滑动画，灵感 / 歌词预览切换按按钮位置决定方向
@@ -328,7 +330,9 @@ Simple Melody 是一款 macOS 原生歌詞創作工具，三欄佈局：左側�
 
 **折疊 / 展開**：點擊段落頭右側箭頭；雙擊段落標題行也可切換
 
-**v1.7.10 改進**：
+**v1.7.10 Extra 改進**：
+- 開啟「段落拖動」後：拖到目標段上半插入其前、下半插入其後；靠近列表頂部自動向上捲動
+- 歌詞編輯欄不再把段落編號寫入正文（已修復舊版「程式碼嵌入歌詞」）
 - 歌詞內文編輯欄高度隨內容自動伸縮（短歌詞不會浪費空間）
 - 游標在編輯欄時滾動滑鼠也能滾外層頁面（滾輪穿透）
 - 切換歌曲有絲滑動畫，靈感 / 歌詞預覽切換按按鈕位置決定方向
@@ -453,7 +457,9 @@ Each type has its own color, default tag, and icon.
 
 **Collapse/Expand**: click the arrow on the section header; double-click also toggles
 
-**v1.7.10 improvements**:
+**v1.7.10 Extra improvements**:
+- With Section Drag on: drop on the top half of a section to insert before it, bottom half to insert after; the list auto-scrolls up near the top edge
+- The lyrics editor no longer inserts section ids as text (the old "code embedded into lyrics" defect is fixed)
 - Lyrics editor height auto-sizes with content (short lyrics don't waste space)
 - Scrolling the mouse while the cursor is in the editor scrolls the outer page (scroll-wheel passthrough)
 - Smooth song-switching animation; Ideas / Preview panel switch follows the button positions
@@ -577,7 +583,9 @@ Simple Melody は macOS ネイティブの歌詞作成ツールで、3 カラム
 
 **折りたたみ / 展開**: セクションヘッダーの矢印をクリック
 
-**v1.7.10 改善**:
+**v1.7.10 Extra 改善**:
+- 「セクションドラッグ」ON 時：上半分にドロップするとその前、下半分だとその後へ挿入。リスト上部付近では自動で上スクロール
+- 歌詞エディタにセクション ID がテキストとして入らなくなった（旧「コード埋め込み」欠陥を修正）
 - 歌詞エディタの高さが内容に合わせて自動調整（短い歌詞はスペースを無駄にしない）
 - エディタ内にカーソルがある時もマウスホイールでページ全体スクロール可能（ホイール透過）
 - 楽曲切替のスムーズなアニメーション、アイデア / 歌詞プレビューの切替はボタン位置に従う

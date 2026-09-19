@@ -123,6 +123,8 @@ final class SongSection {
     /// 用户自定义的标签字符串（如 "[Verse 1]"），为空时使用预设默认
     var customTag: String
     var notes: String
+    /// 段落译文（与笔记并列的侧栏；空则导出时省略）
+    var translation: String = ""
     /// 段落标签，例如 "[Verse 1]"
     var marker: String
     var colorHex: String
@@ -142,7 +144,8 @@ final class SongSection {
         body: String = "",
         customName: String = "",
         customTag: String = "",
-        notes: String = ""
+        notes: String = "",
+        translation: String = ""
     ) {
         self.id = UUID()
         self.order = order
@@ -150,6 +153,7 @@ final class SongSection {
         self.customName = customName
         self.customTag = customTag
         self.notes = notes
+        self.translation = translation
         self.body = body
         self.isCollapsed = false
 

@@ -59,12 +59,12 @@ struct ChangelogView: View {
 
  Divider()
 
- // Markdown 内容
+ // 正文：【章节】+ • 列表（窗口不渲染 Markdown）
  ScrollView {
  VStack(alignment: .leading, spacing: 0) {
- ForEach(ChangelogContent.entries) { entry in
+ ForEach(ChangelogContent.displayedEntries) { entry in
  changelogEntryView(entry, lang: loc.language)
- if entry.id != ChangelogContent.entries.last?.id {
+ if entry.id != ChangelogContent.displayedEntries.last?.id {
  Divider()
  .padding(.horizontal, 20)
  }
@@ -99,8 +99,7 @@ struct ChangelogView: View {
  }
  Spacer()
  }
- // Markdown body（用 .init 让 SwiftUI 解析 markdown 语法；v1.7.5 Gamma 按当前语言返回）
- Text(.init(entry.markdown(for: lang)))
+ Text(ChangelogDisplayText.fromMarkdown(entry.markdown(for: lang)))
  .font(.system(size: 13))
  .lineSpacing(4)
  .textSelection(.enabled)
@@ -114,7 +113,7 @@ struct ChangelogView: View {
 /// 更新日志数据源（每次发布新版本时把新条目插入到 entries 数组最前面）
 enum ChangelogContent {
  struct Entry: Identifiable {
- let id = UUID()
+ var id: String { version }
  let version: String
  let date: String
  let isLatest: Bool
@@ -136,11 +135,130 @@ enum ChangelogContent {
  }
  }
 
+        static var displayedEntries: [Entry] {
+            let rows = entries.map {
+                ChangelogRow(
+                    version: $0.version,
+                    date: $0.date,
+                    isLatest: $0.isLatest,
+                    bodyMarkdown: $0.bodyMarkdown,
+                    bodyMarkdownZHT: $0.bodyMarkdownZHT ?? "",
+                    bodyMarkdownEN: $0.bodyMarkdownEN ?? "",
+                    bodyMarkdownJA: $0.bodyMarkdownJA ?? ""
+                )
+            }
+            return ChangelogFold.fold(rows).map { row in
+                Entry(
+                    version: row.version,
+                    date: row.date,
+                    isLatest: row.isLatest,
+                    bodyMarkdown: row.bodyMarkdown,
+                    bodyMarkdownZHT: row.bodyMarkdownZHT.isEmpty ? nil : row.bodyMarkdownZHT,
+                    bodyMarkdownEN: row.bodyMarkdownEN.isEmpty ? nil : row.bodyMarkdownEN,
+                    bodyMarkdownJA: row.bodyMarkdownJA.isEmpty ? nil : row.bodyMarkdownJA
+                )
+            }
+        }
+
 static let entries: [Entry] = [
+        Entry(
+            version: "v1.8.0",
+            date: "2026-09-19",
+            isLatest: true,
+            bodyMarkdown: """
+【新增】
+• 设置「下载链接」可检查 GitHub 版本更新；启动默认静默自检，仅在发现新版本时弹窗说明并支持前往下载
+• 歌词预览段落下方小字可在笔记 / 译文间切换（默认笔记，空内容不显示）
+• 删除确认列出译文条数
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 設定「下載連結」可檢查 GitHub 版本更新；啟動預設靜默自檢，僅在發現新版本時彈窗說明並支援前往下載
+• 歌詞預覽段落下方小字可在筆記 / 譯文間切換（預設筆記，空內容不顯示）
+• 刪除確認列出譯文條數
+""",
+            bodyMarkdownEN: """
+【New】
+• Settings Download Link can check GitHub for updates; launch self-check is silent and only alerts when a newer release exists, with a manual download action
+• Lyrics preview caption under each section can switch between notes and translation (notes by default; empty stays hidden)
+• Delete confirmation lists the translation count
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 設定のダウンロード欄で GitHub の更新を確認できる。起動時は黙って自検し、新しい版があるときだけ説明ダイアログと手動ダウンロード
+• 歌詞プレビューのセクション下の小字をメモ / 訳文で切り替え（既定はメモ、空なら非表示）
+• 削除確認に訳文の件数を表示
+"""
+        ),
+        Entry(
+            version: "v1.7.10 Extra",
+            date: "2026-09-17",
+            isLatest: false,
+            bodyMarkdown: """
+## 新增
+
+- 写词段落头在「笔记」左侧增加「译文」按钮：交互与伸缩动画与笔记相同；译文 / 笔记不能同时展开，互相切换也会做收起+展开动画
+- `.smelody.txt` 用稳定英文块 `Translation:` 导入导出段落译文（空译文省略，不混入歌词正文）；词炼成可写出该块，曲炼成读取但不把它当唱词
+
+## 修复
+
+- 段落拖放按落点相对目标段**垂直中线**决定插入位置：上半插入到该段之前，下半插入到该段之后（不再一律 `targetIndex + 1`）
+- 拖动时光标靠近列表顶部会真正启动自动向上滚动（此前 `DragAutoScroller` 已分配但从未 `start()`）；NSEvent monitor 在 tracking loop 内同步处理，进入顶部立即滚一格，timer 加到 `RunLoop.common` / `eventTracking`（不再 `Task` 跳出、也不再用 default-mode `scheduledTimer`）
+- 段落拖动改用专用 payload（`com.simplemelody.section-id`）；歌词 NSTextView 拒绝把段落 UUID 当文本插入。不再把「代码嵌入歌词」当作可接受缺陷
+- 空拖放 / 拖到自身为 no-op
+
+包内 `CFBundleShortVersionString` / `MARKETING_VERSION` 仍为 `1.7.10`（系统版本键不接受 Extra 后缀）；设置「关于」与本日志的用户可见版本为 **v1.7.10 Extra**。
+""",
+            bodyMarkdownZHT: """
+## 新增
+
+- 寫詞段落頭在「筆記」左側增加「譯文」按鈕：互動與伸縮動畫與筆記相同；譯文 / 筆記不能同時展開，互相切換也會做收起+展開動畫
+- `.smelody.txt` 用穩定英文塊 `Translation:` 匯入匯出段落譯文（空譯文省略，不混入歌詞正文）；詞煉成可寫出該塊，曲煉成讀取但不把它當唱詞
+
+## 修復
+
+- 段落拖放按落點相對目標段**垂直中線**決定插入位置：上半插入到該段之前，下半插入到該段之後（不再一律 `targetIndex + 1`）
+- 拖動時游標靠近列表頂部會真正啟動自動向上捲動（此前 `DragAutoScroller` 已分配但從未 `start()`）；NSEvent monitor 在 tracking loop 內同步處理，進入頂部立即滾一格，timer 加到 `RunLoop.common` / `eventTracking`（不再 `Task` 跳出、也不再用 default-mode `scheduledTimer`）
+- 段落拖動改用專用 payload（`com.simplemelody.section-id`）；歌詞 NSTextView 拒絕把段落 UUID 當文字插入。不再把「程式碼嵌入歌詞」當作可接受缺陷
+- 空拖放 / 拖到自身為 no-op
+
+包內 `CFBundleShortVersionString` / `MARKETING_VERSION` 仍為 `1.7.10`（系統版本鍵不接受 Extra 後綴）；設定「關於」與本日誌的用戶可見版本為 **v1.7.10 Extra**。
+""",
+            bodyMarkdownEN: """
+## New
+
+- Section header: a Translation control sits immediately left of Notes, with the same press and stretch animation. Translation and Notes cannot both be open; switching still animates collapse+expand
+- `.smelody.txt` round-trips a stable `Translation:` block per section (empty omitted; not mixed into the lyric body). Lyric-create may emit it; music-create reads it and does not treat it as sung lyrics
+
+## Fixed
+
+- Section drop insert uses the drop `location` versus the target's vertical midpoint: top half inserts **before**, bottom half inserts **after** (no longer always `targetIndex + 1`)
+- Drag-near-top auto-scroll is actually started during section drag (`DragAutoScroller.start()` was allocated but never invoked). The NSEvent monitor runs synchronously inside the tracking loop, scrolls immediately on the dragged event, and the timer is added to `RunLoop.common` / `eventTracking` (no `Task` hop, no default-mode-only `scheduledTimer`)
+- Section drag uses a dedicated payload (`com.simplemelody.section-id`); the lyrics `NSTextView` rejects section UUIDs as text. The "code embedded into lyrics" defect is no longer accepted
+- Empty drops and self-drops are no-ops
+
+`CFBundleShortVersionString` / `MARKETING_VERSION` stay `1.7.10` (those keys do not take an Extra suffix). The Settings about row and this changelog identify the build as **v1.7.10 Extra**.
+""",
+            bodyMarkdownJA: """
+## 新機能
+
+- 歌詞セクションヘッダーの「メモ」の左に「訳文」ボタンを追加。操作と伸縮アニメはメモと同じ。訳文とメモは同時に開けず、切り替え時も閉じる+開くアニメになる
+- `.smelody.txt` は安定した英語ブロック `Translation:` でセクション訳文を入出力（空なら省略、歌詞本文に混ぜない）。詞煉成は出力可、曲煉成は読むが歌歌詞としては扱わない
+
+## 修正
+
+- セクションのドロップ挿入は、ドロップ位置とターゲットの垂直中線で判定：上半分ならその前、下半分ならその後（もう常に `targetIndex + 1` ではない）
+- ドラッグ中にカーソルがリスト上部へ近づくと、自動上スクロールが実際に開始される（以前は `DragAutoScroller` を確保したまま `start()` していなかった）。NSEvent モニタは tracking loop 内で同期処理し、上端に入ったイベントで即スクロール、timer は `RunLoop.common` / `eventTracking` に追加（`Task` で抜けない、default-mode の `scheduledTimer` は使わない）
+- セクションドラッグは専用 payload（`com.simplemelody.section-id`）を使用。歌詞 `NSTextView` はセクション UUID をテキストとして挿入しない。「コードが歌詞に埋め込まれる」欠陥を仕様として残さない
+- 空のドロップ / 自身へのドロップは no-op
+
+`CFBundleShortVersionString` / `MARKETING_VERSION` は `1.7.10` のまま（Extra 接尾辞を付けられない）。設定の「About」と本ログ上の表示バージョンは **v1.7.10 Extra**。
+"""
+        ),
         Entry(
             version: "v1.7.10",
             date: "2026-06-26",
-            isLatest: true,
+            isLatest: false,
             bodyMarkdown: "纪念Minecraft v1.7.10发布12周年。",
             bodyMarkdownZHT: "紀念Minecraft v1.7.10發布12週年。",
             bodyMarkdownEN: "In memory of the 12th anniversary of Minecraft v1.7.10.",

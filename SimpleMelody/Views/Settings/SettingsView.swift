@@ -24,8 +24,10 @@ struct SettingsView: View {
     /// v1.4: 用 OpenWindowAction 打开独立 changelog window
     @Environment(\.openWindow) private var openWindow
 
-    /// 当前应用版本号（每次发布时手工更新）
-    private let currentVersion = "v1.7.10"
+    @ObservedObject private var updateChecker = UpdateChecker.shared
+
+    /// 当前应用版本号（与 AppReleaseMath.displayVersion 同源）
+    private let currentVersion = AppReleaseMath.displayVersion
     private let developerName = "Vlan_Tech"
 
     var body: some View {
@@ -155,8 +157,8 @@ struct SettingsView: View {
                         Button(L("取消"), role: .cancel) {
                             sectionDragEnabled = false
                         }
-                        Button(L("我已知晓风险，继续开启"), role: .destructive) {
-                            // 确认开启
+                        Button(L("继续开启")) {
+                            // 确认开启：歌词编辑栏已拒绝段落 id 落入正文
                         }
                     } message: {
                         Text(L("段落拖动开关说明"))
@@ -239,7 +241,24 @@ struct SettingsView: View {
                         }
                     }
 
-                    // 下载链接（v1.7.7 Beta：在版本信息上方）
+                    // 歌词预览小字
+                    SettingsGroup(title: L("歌词预览"), icon: "text.viewfinder") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L("预览段落小字"))
+                                .font(.system(size: 13, weight: .medium))
+                            Text(L("预览段落小字说明"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Picker("", selection: $appSettings.previewCaptionSource) {
+                                Text(L("笔记")).tag(PreviewCaptionSource.notes)
+                                Text(L("译文")).tag(PreviewCaptionSource.translation)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                        }
+                    }
+
+                    // 下载链接（v1.7.7 Beta：在版本信息上方；v1.8.0：检查更新 + 启动自检）
                     downloadLinkSection
 
                     // ====== 底部固定"关于"栏目（永远最底） ======
@@ -250,7 +269,7 @@ struct SettingsView: View {
                 .padding(16)
             }
         }
-        .frame(width: 480, height: 620)
+        .frame(width: 480, height: 720)
         .background(Color(NSColor.windowBackgroundColor))
     }
 
@@ -281,32 +300,85 @@ struct SettingsView: View {
         .preferredColorScheme(themeManager.preferredColorScheme)
     }
 
-    // MARK: 下载链接（v1.7.7 Beta：在版本信息上方）
+    // MARK: 下载链接（v1.7.7 Beta：在版本信息上方；v1.8.0：检查更新 + 启动自检）
 
     private var downloadLinkSection: some View {
-        Button {
-            if let url = URL(string: "https://github.com/VlanTech/Simple-Melody") {
-                NSWorkspace.shared.open(url)
-            }
-        } label: {
-            HStack {
-                Image(systemName: "arrow.down.app.fill")
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("下载链接"))
-                        .font(.system(size: 13, weight: .medium))
-                    Text("github.com/VlanTech/Simple-Melody")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        SettingsGroup(title: L("下载链接"), icon: "arrow.down.app.fill") {
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    if let url = URL(string: AppReleaseMath.downloadPageURL) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.down.app.fill")
+                            .foregroundStyle(.tint)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("下载链接"))
+                                .font(.system(size: 13, weight: .medium))
+                            Text("github.com/VlanTech/Simple-Melody")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .imageScale(.small)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
                 }
-                Spacer()
-                Image(systemName: "arrow.up.right.square")
-                    .imageScale(.small)
-                    .foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
+
+                Divider()
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("检查版本更新"))
+                            .font(.system(size: 13, weight: .medium))
+                        if !updateChecker.statusText.isEmpty {
+                            Text(updateChecker.statusText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        updateChecker.checkFromSettings()
+                    } label: {
+                        if updateChecker.isChecking {
+                            ProgressView()
+                                .controlSize(.small)
+                                .frame(width: 70)
+                        } else {
+                            Text(L("检查版本更新"))
+                                .font(.caption)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(updateChecker.isChecking)
+                }
+
+                Divider()
+
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("启动时检查更新"))
+                            .font(.system(size: 13, weight: .medium))
+                            .lineLimit(1)
+                        Text(L("启动时检查更新说明"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    SystemSwitchToggle(isOn: $appSettings.autoCheckUpdates)
+                        .frame(width: 38, height: 22)
+                        .fixedSize()
+                }
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: 关于栏目（永远最底，固定位置）

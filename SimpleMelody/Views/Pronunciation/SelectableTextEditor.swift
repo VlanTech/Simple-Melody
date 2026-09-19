@@ -82,7 +82,7 @@ struct SelectableTextEditor: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            let ranges = textView.selectedRanges.compactMap { $0 as? NSValue }.map { $0.rangeValue }
+            let ranges = textView.selectedRanges.map(\.rangeValue)
             let range = ranges.first ?? NSRange(location: 0, length: 0)
             parent.onSelectionChange(range)
         }

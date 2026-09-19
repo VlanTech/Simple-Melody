@@ -654,6 +654,40 @@ final class PassthroughTextView: NSTextView {
         invalidateIntrinsicContentSize()
         enclosingScrollView?.invalidateIntrinsicContentSize()
     }
+
+    // v1.7.10 Extra: 拒绝段落拖动 payload（专用 UTType 或 UUID 字符串），避免把 section id 写入歌词。
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if Self.shouldRejectSectionDrag(sender) { return [] }
+        return super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if Self.shouldRejectSectionDrag(sender) { return [] }
+        return super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if Self.shouldRejectSectionDrag(sender) { return false }
+        return super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if Self.shouldRejectSectionDrag(sender) { return false }
+        return super.performDragOperation(sender)
+    }
+
+    static func shouldRejectSectionDrag(_ sender: NSDraggingInfo) -> Bool {
+        let pb = sender.draggingPasteboard
+        let typeIDs = (pb.types ?? []).map(\.rawValue)
+        let strings: [String] = {
+            if let one = pb.string(forType: .string) { return [one] }
+            return []
+        }()
+        return SectionDragMath.shouldRejectLyricsDrop(
+            pasteboardStrings: strings,
+            pasteboardTypeIDs: typeIDs
+        )
+    }
 }
 
 /// v1.7.9 Beta+: 沿视图树向上找第一个不是当前 ScrollView 的 NSScrollView，转发滚轮事件

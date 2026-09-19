@@ -22,7 +22,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.7.10</string>
+	<string>1.8.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
@@ -68,6 +68,16 @@
 					<string>smelody</string>
 				</array>
 			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Simple Melody Section ID</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.simplemelody.section-id</string>
 		</dict>
 	</array>
 </dict>

@@ -118,6 +118,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedSongsRequested)) { _ in
             handleDeleteSelected()
         }
+        .onAppear {
+            UpdateChecker.shared.checkOnLaunch()
+        }
     }
 
     /// v1.7.5 Gamma: ⌘D 删除多选歌曲
@@ -125,7 +128,6 @@ struct ContentView: View {
     private func handleDeleteSelected() {
         let songs = selectedSongs
         guard !songs.isEmpty else { return }
-        let inTrash = songs.filter { $0.folder?.isSystem == true }
         let notInTrash = songs.filter { $0.folder?.isSystem != true }
         let toTrash = notInTrash.isEmpty ? [] : notInTrash
 
@@ -135,10 +137,11 @@ struct ContentView: View {
             ? (toTrash[0].title.isEmpty ? L("未命名") : toTrash[0].title)
             : L("已选 %d 项").localized(with: toTrash.count)
         let message = toTrash.count == 1
-            ? (L("将歌曲移到回收站")
-                + "\n" + L("包含") + " \(toTrash[0].orderedSections.count) " + L("个段落")
-                + " · \(toTrash[0].orderedIdeas.count) " + L("条灵感与设定")
-                + "\n\n" + L("在回收站中再次删除才能永久删除"))
+            ? DeleteConfirmator.singleSongTrashMessage(
+                sectionCount: toTrash[0].orderedSections.count,
+                ideaCount: toTrash[0].orderedIdeas.count,
+                translations: toTrash[0].orderedSections.map(\.translation)
+            )
             : L("将 %d 首歌曲移到回收站？\n\n").localized(with: toTrash.count)
                 + L("在回收站中再次删除才能永久删除")
 

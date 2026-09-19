@@ -28,7 +28,7 @@ struct SectionEditorView: View {
     /// v1.7.9 BugStable: matchedGeometryEffect 用 namespace 做伸缩过渡
     @Namespace private var animNamespace
 
-    @State private var showNotes: Bool = false
+    @State private var sidePanel: SectionSidePanel = .none
     @State private var showTypePicker: Bool = false
     /// v1.7.1: 闪烁状态（跳转后临时高亮，800ms 后自动消失）
     @State private var isFlashing: Bool = false
@@ -234,16 +234,45 @@ struct SectionEditorView: View {
                     .frame(width: 22, height: 28)
                     .help(L("长按段落任意位置可拖动重排"))
 
+                // 译文开关（在笔记左侧；与笔记互斥展开，同一套伸缩动画）
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        sidePanel = SectionSidePanel.toggling(sidePanel, targeting: .translation)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "character.book.closed")
+                            .imageScale(.small)
+                        Text(L("译文"))
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .frame(minHeight: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(sidePanel == .translation ? Color.accentColor.opacity(0.15) : ThemeColor.subtleFill)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(sidePanel == .translation ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
+                    )
+                    .foregroundStyle(sidePanel == .translation ? Color.accentColor : .primary)
+                }
+                .buttonStyle(.plain)
+                .help(L("段落译文"))
+                .fixedSize()
+
                 // 段落笔记开关（带文字 + 图标）
                 Button {
                     // v1.7.9 Test: 用 withAnimation 触发展开/收起动画（v1.7.8 Delta 风格）
                     // v1.7.8 Delta 二进制反汇编：sectionHeader 闭包末尾 `_yXEfU_` 后缀 = withAnimation 调用
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        showNotes.toggle()
+                        sidePanel = SectionSidePanel.toggling(sidePanel, targeting: .notes)
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: showNotes ? "note.text" : "note.text")
+                        Image(systemName: "note.text")
                             .imageScale(.small)
                         Text(L("笔记"))
                             .font(.system(size: 11, weight: .medium))
@@ -253,13 +282,13 @@ struct SectionEditorView: View {
                     .frame(minHeight: 28)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(showNotes ? Color.accentColor.opacity(0.15) : ThemeColor.subtleFill)
+                            .fill(sidePanel == .notes ? Color.accentColor.opacity(0.15) : ThemeColor.subtleFill)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(showNotes ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
+                            .strokeBorder(sidePanel == .notes ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
                     )
-                    .foregroundStyle(showNotes ? Color.accentColor : .primary)
+                    .foregroundStyle(sidePanel == .notes ? Color.accentColor : .primary)
                 }
                 .buttonStyle(.plain)
                 .help(L("段落笔记"))
@@ -315,18 +344,22 @@ struct SectionEditorView: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                // v1.7.9 GT3: if-else + 两边 transition + view-level .animation(value:)
-                // view-level .animation 是 BugStable 动画秘诀，List 模式下也能触发布局动画
-                if showNotes {
+                // v1.7.9 GT3 / Extra: if-else 各支都挂 transition；译文与笔记互斥
+                if sidePanel == .notes {
                     notesPanel
                         .frame(width: 220)
                         .transition(.opacity.combined(with: .move(edge: .trailing)))
-                        .animation(.easeInOut(duration: 0.2), value: showNotes)
+                        .animation(.easeInOut(duration: 0.2), value: sidePanel)
+                } else if sidePanel == .translation {
+                    translationPanel
+                        .frame(width: 220)
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                        .animation(.easeInOut(duration: 0.2), value: sidePanel)
                 } else {
                     Color.clear
                         .frame(width: 0)
                         .transition(.opacity.combined(with: .move(edge: .trailing)))
-                        .animation(.easeInOut(duration: 0.2), value: showNotes)
+                        .animation(.easeInOut(duration: 0.2), value: sidePanel)
                 }
             }
         }
@@ -352,6 +385,36 @@ struct SectionEditorView: View {
             // 动态 minHeight 同步歌词栏底部：notesHeight = max(120, lyricsEditorHeight + 20)
             PassthroughScrollTextEditor(
                 text: $section.notes,
+                isFocused: .constant(false),
+                fontSize: 13,
+                minHeight: max(120, lyricsEditorHeight + 20)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(ThemeColor.subtleFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(ThemeColor.subtleStroke, lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    /// 段落译文面板（交互与笔记相同）
+    private var translationPanel: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: "character.book.closed")
+                    .imageScale(.small)
+                    .foregroundStyle(.primary)
+                Text(L("段落译文"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+            .fixedSize()
+
+            PassthroughScrollTextEditor(
+                text: $section.translation,
                 isFocused: .constant(false),
                 fontSize: 13,
                 minHeight: max(120, lyricsEditorHeight + 20)
@@ -423,7 +486,8 @@ struct SectionEditorView: View {
             body: section.body,
             customName: section.customName,
             customTag: section.customTag,
-            notes: section.notes
+            notes: section.notes,
+            translation: section.translation
         )
         copy.song = song
         copy.marker = section.marker

@@ -504,7 +504,8 @@ struct SongSidebarView: View {
                 body: s.body,
                 customName: s.customName,
                 customTag: s.customTag,
-                notes: s.notes
+                notes: s.notes,
+                translation: s.translation
             )
             newSection.song = copy
             copy.sections.append(newSection)
@@ -519,10 +520,11 @@ struct SongSidebarView: View {
             ? (list[0].title.isEmpty ? L("未命名") : list[0].title)
             : L("已选 %d 项").localized(with: list.count)
         let message = list.count == 1
-            ? (L("将歌曲移到回收站")
-                + "\n" + L("包含") + " \(list[0].orderedSections.count) " + L("个段落")
-                + " · \(list[0].orderedIdeas.count) " + L("条灵感与设定")
-                + "\n\n" + L("在回收站中再次删除才能永久删除"))
+            ? DeleteConfirmator.singleSongTrashMessage(
+                sectionCount: list[0].orderedSections.count,
+                ideaCount: list[0].orderedIdeas.count,
+                translations: list[0].orderedSections.map(\.translation)
+            )
             : L("将 %d 首歌曲移到回收站？\n\n").localized(with: list.count)
                 + L("在回收站中再次删除才能永久删除")
 
@@ -1053,7 +1055,8 @@ private struct FolderSection: View {
                 body: s.body,
                 customName: s.customName,
                 customTag: s.customTag,
-                notes: s.notes
+                notes: s.notes,
+                translation: s.translation
             )
             newSection.song = copy
             copy.sections.append(newSection)

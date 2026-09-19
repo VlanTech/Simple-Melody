@@ -38,4 +38,20 @@ enum DeleteConfirmator {
 
         return response == .alertFirstButtonReturn
     }
+
+    /// Single-song trash copy: 段落 + 灵感与设定 + 译文.
+    static func singleSongTrashMessage(sectionCount: Int, ideaCount: Int, translations: [String]) -> String {
+        let line = SongDeleteSummary.formatCountsLine(
+            sectionCount: sectionCount,
+            ideaCount: ideaCount,
+            translationCount: SongDeleteSummary.translationCount(translations),
+            includeLabel: L("包含"),
+            sectionsLabel: L("个段落"),
+            ideasLabel: L("条灵感与设定"),
+            translationsLabel: L("条译文")
+        )
+        return L("将歌曲移到回收站")
+            + "\n" + line
+            + "\n\n" + L("在回收站中再次删除才能永久删除")
+    }
 }

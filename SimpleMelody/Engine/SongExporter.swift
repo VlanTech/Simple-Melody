@@ -62,20 +62,13 @@ enum SongExporter {
         lines.append("【Lyrics】")
         lines.append("")
         for section in song.orderedSections {
-            lines.append(section.marker)
-            if section.body.isEmpty {
-                lines.append("  ")
-            } else {
-                lines.append(section.body)
-            }
-            // 段落笔记（如果有）
-            if !section.notes.isEmpty {
-                lines.append("")
-                lines.append("  " + L("段落笔记") + ":")
-                for noteLine in section.notes.split(separator: "\n", omittingEmptySubsequences: false) {
-                    lines.append("    " + noteLine)
-                }
-            }
+            lines.append(contentsOf: SectionLyricCodec.encode(
+                marker: section.marker,
+                body: section.body,
+                translation: section.translation,
+                notes: section.notes,
+                notesLabel: L("段落笔记")
+            ))
             lines.append("")
         }
 
@@ -151,9 +144,8 @@ extension SongExporter {
         let backupFolder = folderURL.appendingPathComponent("SimpleMelody_Backup_\(timestamp)", isDirectory: true)
 
         // 创建文件夹
-        let fileManager = FileManager.default
         do {
-            try fileManager.createDirectory(at: backupFolder, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: backupFolder, withIntermediateDirectories: true)
         } catch {
             // 失败：所有歌曲都失败
             for song in songs {
@@ -382,7 +374,7 @@ enum SongImporter {
         var beat: String = "4/4"  // v1.6: 默认 4/4
         var languages: [String] = []
         var tags: [String] = []
-        var sections: [(marker: String, body: String, notes: String)] = []
+        var sections: [SectionLyricSnapshot] = []
         var ideas: [(type: String, content: String)] = []
 
         // 状态机
@@ -394,23 +386,15 @@ enum SongImporter {
         }
         var currentSection: ParseSection = .unknown
         var currentIdeaType: String = "Inspiration"
-        var currentSectionMarker: String? = nil
-        var currentSectionBody: [String] = []
-        var currentSectionNotes: [String] = []
-        var inNotesBlock = false
+        var lyricsLines: [String] = []
 
-        func flushSection() {
-            if let marker = currentSectionMarker {
-                sections.append((
-                    marker: marker,
-                    body: currentSectionBody.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
-                    notes: currentSectionNotes.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-                ))
-            }
-            currentSectionMarker = nil
-            currentSectionBody = []
-            currentSectionNotes = []
-            inNotesBlock = false
+        func flushLyrics() {
+            guard !lyricsLines.isEmpty else { return }
+            sections.append(contentsOf: SectionLyricCodec.parseLyrics(
+                lyricsLines,
+                extraNotesLabels: [L("段落笔记")]
+            ))
+            lyricsLines = []
         }
 
         for rawLine in lines {
@@ -425,12 +409,13 @@ enum SongImporter {
 
             // 段头识别（v1.6：用英文段头）
             if line.hasPrefix("【") && line.hasSuffix("】") {
-                flushSection()
+                if currentSection == .lyrics { flushLyrics() }
                 let header = String(line.dropFirst().dropLast()).lowercased()
                 if header == "song info" {
                     currentSection = .header
                 } else if header == "lyrics" {
                     currentSection = .lyrics
+                    lyricsLines = []
                 } else if header == "ideas & settings" || header == "ideas" {
                     currentSection = .ideas
                 } else {
@@ -484,23 +469,7 @@ enum SongImporter {
                     }
                 }
             case .lyrics:
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                // 段落标签 [Verse 1] 或包含中括号
-                if trimmed.hasPrefix("[") && trimmed.hasSuffix("]") {
-                    flushSection()
-                    currentSectionMarker = trimmed
-                    inNotesBlock = false
-                } else if trimmed.contains(L("段落笔记")) || trimmed.lowercased().hasPrefix("notes:") {
-                    inNotesBlock = true
-                } else if inNotesBlock {
-                    // 笔记内容（缩进）
-                    if !trimmed.isEmpty {
-                        let unindented = trimmed.hasPrefix("    ") ? String(trimmed.dropFirst(4)) : trimmed
-                        currentSectionNotes.append(unindented)
-                    }
-                } else if !trimmed.isEmpty {
-                    currentSectionBody.append(line)
-                }
+                lyricsLines.append(line)
             case .ideas:
                 // v1.6: 灵感类型标题 "◆ Inspiration"（用 preset.name 英文 key）
                 if line.hasPrefix("◆") {
@@ -527,7 +496,7 @@ enum SongImporter {
             }
         }
         // 收尾
-        flushSection()
+        if currentSection == .lyrics { flushLyrics() }
 
         // 至少要有标题
         if title.isEmpty {
@@ -566,7 +535,8 @@ enum SongImporter {
                 typeName: typeName,
                 body: sec.body,
                 customTag: sec.marker,
-                notes: sec.notes
+                notes: sec.notes,
+                translation: sec.translation
             )
             section.song = song
             song.sections.append(section)
@@ -612,7 +582,6 @@ enum SongImporter {
     /// 从文件夹递归导入所有 .smelody.txt 文件，按目录结构创建文件夹
     /// - Returns: 导入的歌曲总数
     static func importFolder(at folderURL: URL, into context: ModelContext) throws -> Int {
-        let fileManager = FileManager.default
         let folderName = folderURL.lastPathComponent
         let trash = SongFolder.fetchTrashFolder(context: context)
         // 创建顶层文件夹

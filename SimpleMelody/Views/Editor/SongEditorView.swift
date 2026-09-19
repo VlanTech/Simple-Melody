@@ -313,11 +313,12 @@ struct SongEditorView: View {
                             song: song,
                             activeSectionID: $activeSectionID,
                             focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
-                            onDrop: { target, ids, location in
+                            onDrop: { target, ids, location, height in
                                 handleSectionDrop(
                                     draggedIDs: ids,
                                     target: target,
-                                    location: location
+                                    location: location,
+                                    targetHeight: height
                                 )
                             }
                         )
@@ -343,33 +344,66 @@ struct SongEditorView: View {
             .padding(.horizontal, 24)
         }
         .background(Color(NSColor.textBackgroundColor))
+        .background(
+            ScrollFrameReporter { frame, anchor in
+                autoScroller.scrollViewFrame = frame
+                autoScroller.scrollAnchorView = anchor
+            }
+        )
+        .onAppear {
+            autoScroller.proxy = proxy
+            autoScroller.orderedSections = song.orderedSections
+            autoScroller.currentTopSectionID = activeSectionID ?? song.orderedSections.last?.id
+            if sectionDragEnabled {
+                autoScroller.start()
+            }
+        }
+        .onDisappear {
+            autoScroller.stop()
+        }
+        .onChange(of: sectionDragEnabled) { _, enabled in
+            autoScroller.proxy = proxy
+            autoScroller.orderedSections = song.orderedSections
+            if enabled {
+                autoScroller.currentTopSectionID = activeSectionID ?? song.orderedSections.last?.id
+                autoScroller.start()
+            } else {
+                autoScroller.stop()
+            }
+        }
+        .onChange(of: song.sections.map(\.id)) { _, _ in
+            autoScroller.orderedSections = song.orderedSections
+        }
         .onChange(of: activeSectionID) { _, newID in
-            guard let id = newID else { return }
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                proxy.scrollTo("\(id.uuidString)-\(sectionDragEnabled ? "drag" : "swipe")", anchor: .center)
+            if let id = newID {
+                autoScroller.currentTopSectionID = id
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    proxy.scrollTo("\(id.uuidString)-\(sectionDragEnabled ? "drag" : "swipe")", anchor: .center)
+                }
             }
         }
     }
 
     // MARK: 拖拽（v1.7.9 Beta+：ScrollView + .dropDestination 任意位置拖动）
 
-    /// 拖动 section 到目标段：默认追加到目标段之后（更简单 + 更符合直觉）
-    /// 段前/段后由 .dropDestination 的 location.y 决定（target 段的 midY）
-    private func handleSectionDrop(draggedIDs: [UUID], target: SongSection, location: CGPoint) {
-        let draggedSet = Set(draggedIDs)
-        let draggedActual = song.sections.filter { draggedSet.contains($0.id) }
-        guard !draggedActual.isEmpty else { return }
-        var newOrder = song.orderedSections.filter { s in !draggedActual.contains(where: { $0.id == s.id }) }
-        guard let targetIndex = newOrder.firstIndex(where: { $0.id == target.id }) else { return }
-        // 简化策略：拖到目标段上方 → 插段前；拖到目标段下方 → 插段后
-        // （dropDestination 默认 location 已经是 .global，可以根据目标段 frame 计算 midY）
-        let insertIndex = targetIndex + 1  // 默认段后
-        let safeIndex = min(insertIndex, newOrder.count)
-        for (i, s) in draggedActual.enumerated() {
-            newOrder.insert(s, at: min(safeIndex + i, newOrder.count))
-        }
-        for (i, s) in newOrder.enumerated() {
-            s.order = i
+    /// 拖到目标段上半 → 插到该段之前；下半 → 插到该段之后。空拖 / 拖到自身为 no-op。
+    private func handleSectionDrop(
+        draggedIDs: [UUID],
+        target: SongSection,
+        location: CGPoint,
+        targetHeight: CGFloat
+    ) {
+        let ordered = song.orderedSections
+        guard let newIDs = SectionDragMath.reorderedIDs(
+            orderedIDs: ordered.map(\.id),
+            draggedIDs: draggedIDs,
+            targetID: target.id,
+            dropY: location.y,
+            targetMidY: targetHeight / 2
+        ) else { return }
+        let byID = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
+        for (i, id) in newIDs.enumerated() {
+            byID[id]?.order = i
         }
         song.updatedAt = Date()
         try? context.save()
@@ -487,38 +521,34 @@ struct SongEditorView: View {
 // 监听全局 leftMouseDragged + leftMouseUp，当鼠标在 ScrollView 顶部 50pt 内时，
 // 持续把 ScrollView 滚到上一个 section，达到"光标接近页面顶部自动向上滚动"的效果
 
-/// v1.7.8 Gamma+: 拖动时鼠标接近 ScrollView 顶部 → 自动向上滚动
-@MainActor
+/// v1.7.8 Gamma+ / v1.7.10 Extra: 拖动时鼠标接近 ScrollView 顶部 → 自动向上滚动。
+/// Extra：start()/stop() 会调用；NSEvent monitor 同步处理（不 Task 跳出 tracking loop）；
+/// 进入顶部边缘立即滚一格；timer 加到 RunLoop.common + eventTracking。
 fileprivate final class DragAutoScroller: ObservableObject {
-    /// ScrollViewReader 的 proxy（由 SongEditorView 在 onAppear 注入）
     var proxy: ScrollViewProxy?
-    /// ScrollView 在屏幕坐标系里的 frame（由 GeometryReader 写入）
+    /// ScrollView 在 window 坐标系里的 frame（由 ScrollFrameReporter 写入，origin 左下）
     var scrollViewFrame: CGRect = .zero
-    /// 当前 ScrollView 顶部对齐的 section id（拖动开始时设初值，每次 auto-scroll 更新）
+    /// 用于沿 superview 找到外层 NSScrollView
+    weak var scrollAnchorView: NSView?
     var currentTopSectionID: UUID?
-    /// 全部有序 sections（拖动开始 + sections 变化时同步）
     var orderedSections: [SongSection] = []
 
-    /// 触发自动滚动的阈值：距 ScrollView 顶部多少 pt
-    let edgeThreshold: CGFloat = 50
-    /// 自动滚动 tick 间隔（秒）；数值越小滚得越快
+    let edgeThreshold: CGFloat = SectionDragMath.defaultTopEdgeThreshold
     let tickInterval: TimeInterval = 0.08
+    let scrollDelta: CGFloat = SectionDragMath.defaultScrollDelta
 
     private var monitor: Any?
     private var timer: Timer?
 
-    /// 启动全局事件监听
     func start() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
-            Task { @MainActor in
-                self?.handleEvent(event)
-            }
+            // Must stay on this stack: NSDragging runs NSEventTrackingRunLoopMode.
+            self?.handleEvent(event)
             return event
         }
     }
 
-    /// 停止监听 + 清理 Timer
     func stop() {
         if let m = monitor {
             NSEvent.removeMonitor(m)
@@ -527,74 +557,130 @@ fileprivate final class DragAutoScroller: ObservableObject {
         stopTimer()
     }
 
-    @MainActor
     private func handleEvent(_ event: NSEvent) {
+        let kind: SectionDragMath.DragEventKind
         switch event.type {
-        case .leftMouseDragged:
-            checkAndAutoScroll(mouseLocation: event.locationInWindow)
-        case .leftMouseUp:
+        case .leftMouseDragged: kind = .leftMouseDragged
+        case .leftMouseUp: kind = .leftMouseUp
+        default: kind = .other
+        }
+        let inTopEdge = kind == .leftMouseDragged && SectionDragMath.isInTopAutoScrollEdge(
+            mouseInWindow: event.locationInWindow,
+            scrollViewInWindow: scrollViewFrame,
+            threshold: edgeThreshold
+        )
+        switch SectionDragMath.commandForDragEvent(kind: kind, inTopEdge: inTopEdge) {
+        case .scrollNowAndEnsureTimer:
+            scrollUpOneTick()
+            startTimer { [weak self] in
+                self?.scrollUpOneTick()
+            }
+        case .stopTimer:
             stopTimer()
-        default:
+        case .ignore:
             break
         }
     }
 
-    @MainActor
-    private func checkAndAutoScroll(mouseLocation: NSPoint) {
-        guard let proxy = proxy, !orderedSections.isEmpty,
-              let screen = NSScreen.main else {
-            stopTimer()
+    private func scrollUpOneTick() {
+        if let scrollView = enclosingEditorScrollView() {
+            let clip = scrollView.contentView
+            let documentHeight = scrollView.documentView?.frame.height ?? clip.bounds.height
+            let nextY = SectionDragMath.nextScrollOriginY(
+                currentY: clip.bounds.origin.y,
+                isFlipped: clip.isFlipped,
+                delta: scrollDelta,
+                documentHeight: documentHeight,
+                clipHeight: clip.bounds.height
+            )
+            var origin = clip.bounds.origin
+            origin.y = nextY
+            clip.scroll(to: origin)
+            scrollView.reflectScrolledClipView(clip)
             return
         }
-
-        // macOS 坐标系：event.locationInWindow 的 y 从屏幕底部算 → 转为从屏幕顶部算
-        let mouseYFromTop = screen.frame.height - mouseLocation.y
-
-        // ScrollView frame 是 .global 坐标（从屏幕顶部算）
-        let localY = mouseYFromTop - scrollViewFrame.minY
-
-        // 只在顶部边缘触发
-        guard localY >= 0 && localY < edgeThreshold else {
-            stopTimer()
-            return
-        }
-
-        // 当前 ScrollView 顶部 section 已经在最顶了就别滚了
+        guard let proxy = proxy else { return }
         guard let currentID = currentTopSectionID,
               let currentIdx = orderedSections.firstIndex(where: { $0.id == currentID }),
-              currentIdx > 0 else {
-            stopTimer()
+              let prevIdx = SectionDragMath.previousSectionIndex(currentIndex: currentIdx) else {
             return
         }
-
-        // 启动 timer 持续往上滚
-        let snapshotSections = orderedSections
-        startTimer {
-            guard let currentID = self.currentTopSectionID,
-                  let idx = snapshotSections.firstIndex(where: { $0.id == currentID }),
-                  idx > 0 else {
-                self.stopTimer()
-                return
-            }
-            let prevIdx = idx - 1
-            let prevID = snapshotSections[prevIdx].id
-            withAnimation(.linear(duration: 0.08)) {
-                proxy.scrollTo("\(prevID.uuidString)-drag", anchor: .top)
-            }
-            self.currentTopSectionID = prevID
+        let prevID = orderedSections[prevIdx].id
+        withAnimation(.linear(duration: 0.08)) {
+            proxy.scrollTo("\(prevID.uuidString)-drag", anchor: .top)
         }
+        currentTopSectionID = prevID
+    }
+
+    private func enclosingEditorScrollView() -> NSScrollView? {
+        var current: NSView? = scrollAnchorView
+        while let view = current {
+            if let scrollView = view as? NSScrollView, !(scrollView is PassthroughScrollView) {
+                return scrollView
+            }
+            current = view.superview
+        }
+        return nil
     }
 
     private func startTimer(_ action: @escaping () -> Void) {
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in action() }
-        }
+        timer = SectionDragMath.scheduleAutoScrollTimer(interval: tickInterval, action: action)
     }
 
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+}
+
+/// Reports the SwiftUI view's frame in Cocoa window coordinates (origin bottom-left).
+fileprivate struct ScrollFrameReporter: NSViewRepresentable {
+    var onFrameChange: (CGRect, NSView) -> Void
+
+    func makeNSView(context: Context) -> ScrollFrameView {
+        let view = ScrollFrameView()
+        view.onFrameChange = onFrameChange
+        return view
+    }
+
+    func updateNSView(_ nsView: ScrollFrameView, context: Context) {
+        nsView.onFrameChange = onFrameChange
+        nsView.report()
+    }
+}
+
+fileprivate final class ScrollFrameView: NSView {
+    var onFrameChange: ((CGRect, NSView) -> Void)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func layout() {
+        super.layout()
+        report()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        report()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        report()
+    }
+
+    func report() {
+        onFrameChange?(convert(bounds, to: nil), self)
+    }
+}
+
+/// Dedicated drag payload so lyrics NSTextView does not see a plain-text UUID.
+struct SectionIDPayload: Codable, Transferable, Hashable {
+    let id: UUID
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: UTType(exportedAs: SectionDragMath.sectionIDTypeIdentifier))
     }
 }
 
@@ -608,9 +694,11 @@ struct DraggableSectionWrapper: View {
     let song: Song
     @Binding var activeSectionID: UUID?
     @Binding var focusBodyOnNextSectionChange: Bool
-    let onDrop: (SongSection, [UUID], CGPoint) -> Void
+    let onDrop: (SongSection, [UUID], CGPoint, CGFloat) -> Void
 
     @State private var isDropTargeted: Bool = false
+    @State private var sectionHeight: CGFloat = 1
+    @State private var insertBefore: Bool = true
 
     var body: some View {
         SectionEditorView(
@@ -621,8 +709,16 @@ struct DraggableSectionWrapper: View {
             focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange
         )
         .contentShape(Rectangle())
-        // 任意位置拖动：直接挂 .draggable + .dropDestination（用户在开启开关时已接受 NSTextView 冲突风险）
-        .draggable(section.id.uuidString) {
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { sectionHeight = max(geo.size.height, 1) }
+                    .onChange(of: geo.size.height) { _, height in
+                        sectionHeight = max(height, 1)
+                    }
+            }
+        )
+        .draggable(SectionIDPayload(id: section.id)) {
             HStack(spacing: 6) {
                 Image(systemName: "music.note.list")
                     .foregroundStyle(.tint)
@@ -632,17 +728,18 @@ struct DraggableSectionWrapper: View {
             .padding(8)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
         }
-        .dropDestination(for: String.self) { items, location in
-            let ids = items.compactMap { UUID(uuidString: $0) }.filter { $0 != section.id }
+        .dropDestination(for: SectionIDPayload.self) { items, location in
+            let ids = items.map(\.id).filter { $0 != section.id }
             guard !ids.isEmpty else { return false }
-            onDrop(section, ids, location)
+            insertBefore = SectionDragMath.insertsBefore(dropY: location.y, targetMidY: sectionHeight / 2)
+            onDrop(section, ids, location, sectionHeight)
             return true
         } isTargeted: { targeted in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                 isDropTargeted = targeted
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: insertBefore ? .top : .bottom) {
             if isDropTargeted {
                 Rectangle()
                     .fill(Color.accentColor)

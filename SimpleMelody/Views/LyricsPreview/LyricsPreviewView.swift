@@ -6,6 +6,7 @@ import SwiftUI
 import AppKit
 
 struct LyricsPreviewView: View {
+    @ObservedObject private var appSettings = AppSettings.shared
     @Bindable var song: Song
     /// 当前激活的段落 ID（从编辑区传过来，高亮用）
     let activeSectionID: UUID?
@@ -132,9 +133,13 @@ struct LyricsPreviewView: View {
                     )
             }
 
-            // 段落笔记（折叠显示在歌词下面）
-            if !section.notes.isEmpty {
-                Text(section.notes)
+            // 段落下方小字：笔记或译文（空则隐藏）
+            if let caption = LyricsPreviewCaption.text(
+                notes: section.notes,
+                translation: section.translation,
+                source: appSettings.previewCaptionSource
+            ) {
+                Text(caption)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)

@@ -11,6 +11,8 @@ struct ChangelogRow: Equatable {
     var bodyMarkdownZHT: String
     var bodyMarkdownEN: String
     var bodyMarkdownJA: String
+    var bodyMarkdownKO: String = ""
+    var bodyMarkdownES: String = ""
 }
 
 enum ChangelogFold {
@@ -53,14 +55,17 @@ enum ChangelogFold {
                 members.map(pick).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                     .joined(separator: "\n\n")
             }
+            let stemDate = members.first(where: { $0.version == stem })?.date
             return ChangelogRow(
                 version: stem,
-                date: members.first?.date ?? "",
+                date: stemDate ?? members.first?.date ?? "",
                 isLatest: members.contains(where: \.isLatest),
                 bodyMarkdown: join(\.bodyMarkdown),
                 bodyMarkdownZHT: join(\.bodyMarkdownZHT),
                 bodyMarkdownEN: join(\.bodyMarkdownEN),
-                bodyMarkdownJA: join(\.bodyMarkdownJA)
+                bodyMarkdownJA: join(\.bodyMarkdownJA),
+                bodyMarkdownKO: join(\.bodyMarkdownKO),
+                bodyMarkdownES: join(\.bodyMarkdownES)
             )
         }
     }

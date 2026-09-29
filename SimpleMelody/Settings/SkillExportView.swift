@@ -11,9 +11,12 @@ import UniformTypeIdentifiers
 
 struct SkillExportWindow: View {
     var body: some View {
+        let frame = AppFontMetrics.skillExportFrame
         SkillExportView()
-            .frame(minWidth: 720, idealWidth: 800, maxWidth: 920,
-                   minHeight: 720, idealHeight: 780, maxHeight: 900)
+            .frame(
+                minWidth: frame.minWidth, idealWidth: frame.idealWidth, maxWidth: frame.maxWidth,
+                minHeight: frame.minHeight, idealHeight: frame.idealHeight, maxHeight: frame.maxHeight
+            )
     }
 }
 
@@ -73,10 +76,10 @@ struct SkillExportView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Image(systemName: "wand.and.stars")
-                .font(.system(size: 18, weight: .medium))
+                .appFont(18, weight: .medium)
                 .foregroundStyle(.tint)
             Text(L("技能炼成"))
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(16, weight: .semibold)
             Spacer()
             Button {
                 dismiss()
@@ -85,7 +88,7 @@ struct SkillExportView: View {
                     Image(systemName: "xmark")
                         .imageScale(.small)
                     Text(L("关闭"))
-                        .font(.system(size: 12, weight: .medium))
+                        .appFont(12, weight: .medium)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -107,17 +110,17 @@ struct SkillExportView: View {
 
     private var warningSection: some View {
         VStack(spacing: 6) {
-            // 第一段：Skill 需要移交给拥有 Agent 能力的智能体
+            // 第一段：Skill需要移交给有文件处理能力的LLM
             HStack(spacing: 6) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
-                Text(L("Skill 需要移交给拥有 Agent 能力的智能体"))
-                    .font(.system(size: 14, weight: .bold))
+                Text(L("Skill需要移交给有文件处理能力的LLM"))
+                    .appFont(14, weight: .bold)
                     .foregroundStyle(.red)
             }
             // 第二段：↑ 如果您无法理解以上内容请不要使用该功能 ↑
             Text("↑ " + L("如果您无法理解以上内容请不要使用该功能") + " ↑")
-                .font(.system(size: 14, weight: .bold))
+                .appFont(14, weight: .bold)
                 .foregroundStyle(.red)
         }
         .frame(maxWidth: .infinity)
@@ -141,13 +144,13 @@ struct SkillExportView: View {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(.tint)
                 Text(L("Skill 简介"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(13, weight: .semibold)
             }
             Text(L("词炼成是把创作需求转化为可导入 Simple Melody 的 .smelody.txt 歌词文件。"))
-                .font(.system(size: 12))
+                .appFont(12)
                 .foregroundStyle(.primary)
             Text(L("曲炼成是把 .smelody.txt 提炼为作曲 AI（SUNO / Udio 等）可直接使用的两段式文件。"))
-                .font(.system(size: 12))
+                .appFont(12)
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,14 +169,14 @@ struct SkillExportView: View {
             // 卡片头
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .appFont(18, weight: .medium)
                     .foregroundStyle(.tint)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
-                        .font(.system(size: 14, weight: .bold))
+                        .appFont(14, weight: .bold)
                     Text(skillId)
-                        .font(.system(size: 10, design: .monospaced))
+                        .appFont(10, design: .monospaced)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -185,7 +188,7 @@ struct SkillExportView: View {
                         Image(systemName: "square.and.arrow.up")
                             .imageScale(.small)
                         Text(L("导出"))
-                            .font(.system(size: 12, weight: .medium))
+                            .appFont(12, weight: .medium)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -200,24 +203,24 @@ struct SkillExportView: View {
             }
             // 描述
             Text(description)
-                .font(.system(size: 12))
+                .appFont(12)
                 .foregroundStyle(.primary)
             // 触发词
             HStack(alignment: .top, spacing: 4) {
                 Text(L("触发词："))
-                    .font(.system(size: 11, weight: .medium))
+                    .appFont(11, weight: .medium)
                     .foregroundStyle(.secondary)
                 Text(triggerWords)
-                    .font(.system(size: 11, design: .monospaced))
+                    .appFont(11, design: .monospaced)
                     .foregroundStyle(.primary)
             }
             // 输出
             HStack(alignment: .top, spacing: 4) {
                 Text(L("输出") + "：")
-                    .font(.system(size: 11, weight: .medium))
+                    .appFont(11, weight: .medium)
                     .foregroundStyle(.secondary)
                 Text(output)
-                    .font(.system(size: 11))
+                    .appFont(11)
                     .foregroundStyle(.primary)
             }
         }
@@ -241,7 +244,7 @@ struct SkillExportView: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .foregroundStyle(.tint)
                 Text(L("完整工作流（推荐）"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(13, weight: .semibold)
             }
             // 三步工作流
             VStack(alignment: .leading, spacing: 8) {
@@ -270,15 +273,15 @@ struct SkillExportView: View {
     private func workflowStep(num: String, title: String, body: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(num)
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .appFont(12, weight: .bold, design: .monospaced)
                 .frame(width: 20, height: 20)
                 .background(Circle().fill(Color.accentColor.opacity(0.18)))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(12, weight: .semibold)
                 Text(body)
-                    .font(.system(size: 11))
+                    .appFont(11)
                     .foregroundStyle(.secondary)
             }
         }
@@ -288,11 +291,11 @@ struct SkillExportView: View {
     private func workflowSubStep(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "arrow.turn.down.right")
-                .font(.system(size: 9))
+                .appFont(9)
                 .foregroundStyle(.secondary)
                 .frame(width: 12)
             Text(text)
-                .font(.system(size: 11))
+                .appFont(11)
                 .foregroundStyle(.primary)
         }
         .padding(.leading, 28)
@@ -305,7 +308,7 @@ struct SkillExportView: View {
             Image(systemName: lastExportIsSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundStyle(lastExportIsSuccess ? .green : .red)
             Text(lastExportMessage)
-                .font(.system(size: 11))
+                .appFont(11)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 12)

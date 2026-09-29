@@ -29,6 +29,13 @@ struct SongEditorView: View {
     /// 动画前提：SectionEditorView 已用原生 TextEditor（无 PassthroughScrollTextEditor），
     /// 故 List / ScrollView 两种容器下笔记与折叠展开动画均正常
     @AppStorage("sectionDragEnabled") private var sectionDragEnabled: Bool = false
+    /// 各段落笔记/译文侧栏。Command 点击时整首歌共用这一份状态。
+    @State private var sectionPanels: [UUID: SectionSidePanel] = [:]
+    @State private var imagineRequest: ImagineRequest?
+    @State private var imagineBusy = false
+    @State private var imagineMessage: String?
+    @State private var imagineTask: Task<Void, Never>?
+    @StateObject private var imagineCancel = ImagineCancelMonitor()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +56,57 @@ struct SongEditorView: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
             }
         )
+        .sheet(item: $imagineRequest) { request in
+            ImagineDialog(wholeSong: request.sectionID == nil) { action, language, prompt, keepFormat in
+                let sectionID = request.sectionID
+                imagineRequest = nil
+                performImagine(
+                    action: action,
+                    targetLanguage: language,
+                    prompt: prompt,
+                    sectionID: sectionID,
+                    keepCurrentFormat: keepFormat
+                )
+            } onCancel: {
+                imagineRequest = nil
+            }
+        }
+        .overlay {
+            if imagineBusy {
+                VStack(spacing: 8) {
+                    ProgressView(L("正在请模型处理"))
+                    Text(L("按 Command-Esc 取消"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .background {
+                    Button(action: cancelImagine) {}
+                        .keyboardShortcut(.escape, modifiers: .command)
+                        .labelsHidden()
+                        .frame(width: 0, height: 0)
+                }
+            }
+        }
+        .onChange(of: imagineBusy) { _, busy in
+            if busy {
+                imagineCancel.start { cancelImagine() }
+            } else {
+                imagineCancel.stop()
+            }
+        }
+        .onDisappear {
+            imagineCancel.stop()
+        }
+        .alert(L("Imagine"), isPresented: Binding(
+            get: { imagineMessage != nil },
+            set: { if !$0 { imagineMessage = nil } }
+        )) {
+            Button(L("确定"), role: .cancel) { imagineMessage = nil }
+        } message: {
+            Text(imagineMessage ?? "")
+        }
     }
 
     // MARK: 头部元信息
@@ -58,7 +116,7 @@ struct SongEditorView: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     TextField(L("歌曲标题"), text: $song.title, axis: .horizontal)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .appFont(24, weight: .bold, design: .rounded)
                         .textFieldStyle(.plain)
 
                     HStack(spacing: 8) {
@@ -71,25 +129,51 @@ struct SongEditorView: View {
                     .font(.callout)
                 }
                 Spacer()
-                Menu {
+                // 页操作区：导出/复制，并预留以后再加页面按钮的宽度
+                HStack(spacing: 8) {
                     Button {
-                        exportToText()
+                        imagineRequest = ImagineRequest(sectionID: nil)
                     } label: {
-                        Label(L("导出为文本文件（含全部信息）"), systemImage: "square.and.arrow.up")
+                        Image(systemName: "sparkles")
+                            .appFont(14, weight: .semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(Capsule().fill(Color.blue))
                     }
-                    Button {
-                        let pb = NSPasteboard.general
-                        pb.clearContents()
-                        pb.setString(song.fullBody, forType: .string)
+                    .buttonStyle(.plain)
+                    .help(L("Imagine"))
+                    .accessibilityLabel(L("Imagine"))
+                    Menu {
+                        Button {
+                            exportToText()
+                        } label: {
+                            Label(L("导出为文本文件（含全部信息）"), systemImage: "square.and.arrow.up")
+                        }
+                        Button {
+                            let pb = NSPasteboard.general
+                            pb.clearContents()
+                            pb.setString(song.fullBody, forType: .string)
+                        } label: {
+                            Label(L("复制全文到剪贴板"), systemImage: "doc.on.doc")
+                        }
                     } label: {
-                        Label(L("复制全文到剪贴板"), systemImage: "doc.on.doc")
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.arrow.up")
+                                .imageScale(.small)
+                            Text(L("导出"))
+                                .appFont(12, weight: .medium)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1))
+                        .foregroundStyle(Color.accentColor)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.large)
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help(L("导出为文本文件（含全部信息）"))
                 }
-                .menuStyle(.borderlessButton)
-                .frame(width: 32)
+                .frame(minWidth: 148, minHeight: 32, alignment: .trailing)
             }
 
             HStack(spacing: 14) {
@@ -108,7 +192,7 @@ struct SongEditorView: View {
                         Image(systemName: showMetadata ? "chevron.up" : "chevron.down")
                             .imageScale(.small)
                         Text(showMetadata ? L("收起") : L("展开元信息"))
-                            .font(.system(size: 11, weight: .medium))
+                            .appFont(11, weight: .medium)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -311,6 +395,8 @@ struct SongEditorView: View {
                             section: section,
                             languages: song.languages,
                             song: song,
+                            sidePanel: panelBinding(for: section.id),
+                            onHeaderControl: { applyHeaderControl($0, sectionID: section.id) },
                             activeSectionID: $activeSectionID,
                             focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
                             onDrop: { target, ids, location, height in
@@ -329,9 +415,12 @@ struct SongEditorView: View {
                             section: section,
                             languages: song.languages,
                             song: song,
+                            sidePanel: panelBinding(for: section.id),
+                            onHeaderControl: { applyHeaderControl($0, sectionID: section.id) },
                             activeSectionID: $activeSectionID,
                             focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
-                            onDelete: { deleteSectionsByID(section.id) }
+                            onDelete: { deleteSectionsByID(section.id) },
+                            onImagine: { imagineRequest = ImagineRequest(sectionID: section.id) }
                         )
                         .id("\(section.id.uuidString)-swipe")
                         .transition(.opacity)
@@ -385,6 +474,37 @@ struct SongEditorView: View {
     }
 
     // MARK: 拖拽（v1.7.9 Beta+：ScrollView + .dropDestination 任意位置拖动）
+
+    private func panelBinding(for id: UUID) -> Binding<SectionSidePanel> {
+        Binding(
+            get: { sectionPanels[id] ?? .none },
+            set: { sectionPanels[id] = $0 }
+        )
+    }
+
+    /// Command 按住时对整首歌应用同一开/合；否则只改当前段。
+    private func applyHeaderControl(_ control: SectionHeaderControl, sectionID: UUID) {
+        let ordered = song.orderedSections
+        guard let index = ordered.firstIndex(where: { $0.id == sectionID }) else { return }
+        let commandHeld = NSEvent.modifierFlags.contains(.command)
+        let before = ordered.map {
+            SectionPanelState(panel: sectionPanels[$0.id] ?? .none, collapsed: $0.isCollapsed)
+        }
+        let after = SectionBatchAction.apply(
+            states: before,
+            clickedIndex: index,
+            control: control,
+            commandHeld: commandHeld
+        )
+        withAnimation(.easeInOut(duration: 0.2)) {
+            for (offset, section) in ordered.enumerated() {
+                sectionPanels[section.id] = after[offset].panel
+                if section.isCollapsed != after[offset].collapsed {
+                    section.isCollapsed = after[offset].collapsed
+                }
+            }
+        }
+    }
 
     /// 拖到目标段上半 → 插到该段之前；下半 → 插到该段之后。空拖 / 拖到自身为 no-op。
     private func handleSectionDrop(
@@ -464,7 +584,7 @@ struct SongEditorView: View {
                 Image(systemName: "plus.circle.fill")
                     .font(.title3)
                 Text(L("添加段落"))
-                    .font(.system(size: 14, weight: .medium))
+                    .appFont(14, weight: .medium)
                 Spacer()
             }
             .padding(.horizontal, 14)
@@ -692,6 +812,8 @@ struct DraggableSectionWrapper: View {
     let section: SongSection
     let languages: [String]
     let song: Song
+    @Binding var sidePanel: SectionSidePanel
+    let onHeaderControl: (SectionHeaderControl) -> Void
     @Binding var activeSectionID: UUID?
     @Binding var focusBodyOnNextSectionChange: Bool
     let onDrop: (SongSection, [UUID], CGPoint, CGFloat) -> Void
@@ -706,7 +828,9 @@ struct DraggableSectionWrapper: View {
             languages: languages,
             song: song,
             activeSectionID: $activeSectionID,
-            focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange
+            focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
+            sidePanel: $sidePanel,
+            onHeaderControl: onHeaderControl
         )
         .contentShape(Rectangle())
         .background(
@@ -751,6 +875,314 @@ struct DraggableSectionWrapper: View {
     }
 }
 
+private struct ImagineRequest: Identifiable {
+    let id = UUID()
+    var sectionID: UUID?
+}
+
+extension SongEditorView {
+    fileprivate func imagineDocument() -> ImagineDocument {
+        ImagineDocument(
+            title: song.title,
+            artist: song.artist,
+            languages: song.languages.joined(separator: ","),
+            bpm: song.bpm,
+            musicalKey: song.musicalKey,
+            beat: song.beat,
+            ideas: song.orderedIdeas.map(\.content).joined(separator: "\n"),
+            ideaItems: song.orderedIdeas.map {
+                ImagineIdea(id: $0.id.uuidString, ideaType: $0.ideaType, content: $0.content)
+            },
+            sections: song.orderedSections.map {
+                ImagineSection(
+                    id: $0.id.uuidString,
+                    marker: $0.marker,
+                    body: $0.body,
+                    translation: $0.translation,
+                    notes: $0.notes
+                )
+            }
+        )
+    }
+
+    fileprivate func writeImagine(_ document: ImagineDocument) {
+        let languages = document.languages
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !languages.isEmpty {
+            song.languages = languages
+        }
+        let title = document.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
+            song.title = title
+        }
+        song.bpm = document.bpm
+        song.musicalKey = document.musicalKey
+        song.beat = document.beat
+        var kept: [SongSection] = []
+        var seen = Set<UUID>()
+        for snap in document.sections {
+            if let uuid = UUID(uuidString: snap.id),
+               let existing = song.sections.first(where: { $0.id == uuid }) {
+                existing.body = snap.body
+                existing.translation = snap.translation
+                existing.notes = snap.notes
+                kept.append(existing)
+                seen.insert(existing.id)
+            } else {
+                let created = SongSection(
+                    order: kept.count,
+                    typeName: "Custom",
+                    body: snap.body,
+                    customTag: snap.marker,
+                    notes: snap.notes,
+                    translation: snap.translation
+                )
+                created.song = song
+                song.sections.append(created)
+                kept.append(created)
+                seen.insert(created.id)
+            }
+        }
+        for leftover in song.sections where !seen.contains(leftover.id) {
+            context.delete(leftover)
+        }
+        for (index, section) in kept.enumerated() {
+            section.order = index
+        }
+        if !document.ideaItems.isEmpty {
+            var keptIdeas: [SongIdea] = []
+            var seenIdeas = Set<UUID>()
+            for (index, snap) in document.ideaItems.enumerated() {
+                let type = IdeaTypePreset.find(named: snap.ideaType)?.name ?? "Inspiration"
+                if let uuid = UUID(uuidString: snap.id),
+                   let existing = song.ideas.first(where: { $0.id == uuid }) {
+                    existing.content = snap.content
+                    existing.ideaType = type
+                    existing.order = index
+                    keptIdeas.append(existing)
+                    seenIdeas.insert(existing.id)
+                } else {
+                    let created = SongIdea(order: index, content: snap.content, ideaType: type)
+                    created.song = song
+                    song.ideas.append(created)
+                    keptIdeas.append(created)
+                    seenIdeas.insert(created.id)
+                }
+            }
+            for leftover in song.ideas where !seenIdeas.contains(leftover.id) {
+                context.delete(leftover)
+            }
+        }
+        song.updatedAt = Date()
+        try? context.save()
+    }
+
+    fileprivate func performImagine(
+        action: ImagineAction,
+        targetLanguage: String,
+        prompt: String,
+        sectionID: UUID?,
+        keepCurrentFormat: Bool
+    ) {
+        let saved = LLMAPIKeyStore().current()
+        let document = imagineDocument()
+        let scope: ImagineScope = sectionID.map { .section($0.uuidString) } ?? .song
+        guard let composed = ImagineWorkflow.compose(
+            action: action,
+            scope: scope,
+            document: document,
+            targetLanguage: targetLanguage,
+            userPrompt: prompt,
+            keepCurrentFormat: keepCurrentFormat
+        ) else {
+            imagineMessage = action == .translate
+                ? L("没有歌词的段落不会翻译，笔记也不会被当成歌词")
+                : L("回复格式无法识别，没有改动歌词")
+            return
+        }
+        guard let request = ImagineAPI.chatRequest(connection: saved, system: composed.system, user: composed.user) else {
+            imagineMessage = L("请先填写供应商网址和 API Key")
+            return
+        }
+        imagineTask?.cancel()
+        imagineBusy = true
+        imagineTask = Task {
+            let result = await ImagineAPI.send(request)
+            await MainActor.run {
+                imagineBusy = false
+                imagineTask = nil
+                if Task.isCancelled { return }
+                switch result {
+                case .success(let text):
+                    let outcome = ImagineWorkflow.applyResult(
+                        reply: text,
+                        action: action,
+                        scope: scope,
+                        document: document,
+                        keepCurrentFormat: keepCurrentFormat
+                    )
+                    if outcome.overreach {
+                        imagineTask?.cancel()
+                        imagineMessage = L("段落Imagine不能改整首歌或其他段落")
+                    } else if outcome.document == document {
+                        imagineMessage = L("回复格式无法识别，没有改动歌词")
+                    } else {
+                        writeImagine(outcome.document)
+                    }
+                case .failure(.cancelled):
+                    break
+                case .failure:
+                    imagineMessage = L("连接失败")
+                }
+            }
+        }
+    }
+
+    fileprivate func cancelImagine() {
+        imagineTask?.cancel()
+        imagineBusy = false
+        imagineTask = nil
+    }
+}
+
+private struct ImagineDialog: View {
+    let wholeSong: Bool
+    let onRun: (ImagineAction, String, String, Bool) -> Void
+    let onCancel: () -> Void
+
+    @State private var action: ImagineAction = .translate
+    @State private var targetLanguage = ImagineDialog.initialLanguage()
+    @State private var prompt = ""
+    @State private var keepCurrentFormat = true
+    @State private var showCreateWarning = false
+
+    private var languageChoices: [String] {
+        var names = SongLanguage.all.map(\.name)
+        if !targetLanguage.isEmpty, !names.contains(targetLanguage) {
+            names.insert(targetLanguage, at: 0)
+        }
+        return names
+    }
+
+    private static func initialLanguage() -> String {
+        let last = ImagineLanguageMemory.last()
+        if !last.isEmpty { return last }
+        return SongLanguage.all.first?.name ?? ""
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(wholeSong ? L("Imagine") : L("段落Imagine"))
+                .font(.title3.weight(.semibold))
+            if action == .create && wholeSong {
+                Text(L("也可填写歌曲语言、速度、调式和节拍"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !wholeSong {
+                Text(L("只修改这一段"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Picker(L("Imagine"), selection: $action) {
+                Text(L("翻译")).tag(ImagineAction.translate)
+                Text(L("创意")).tag(ImagineAction.create)
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+
+            HStack(spacing: 8) {
+                Image(systemName: "circle")
+                    .foregroundStyle(.tertiary)
+                Text(L("注音"))
+                Text(L("即将推出"))
+                    .foregroundStyle(.secondary)
+            }
+            .font(.callout)
+            .disabled(true)
+            .opacity(0.55)
+
+            if action == .create && wholeSong {
+                Toggle(L("依照当前格式"), isOn: $keepCurrentFormat)
+            }
+
+            if action == .translate {
+                Picker(L("目标语言"), selection: $targetLanguage) {
+                    ForEach(languageChoices, id: \.self) { name in
+                        Text(L(name)).tag(name)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Text(L("提示词可留空"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField(L("提示词可留空"), text: $prompt, axis: .vertical)
+                .lineLimit(3...6)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Spacer()
+                Button(L("取消"), action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button(L("开始")) {
+                    if action == .create {
+                        showCreateWarning = true
+                    } else {
+                        startImagine()
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(action == .translate && targetLanguage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: AppFontMetrics.dialogWidth)
+        .alert(L("创意可能无法撤销或改错"), isPresented: $showCreateWarning) {
+            Button(L("取消"), role: .cancel) {}
+            Button(L("继续")) { startImagine() }
+        } message: {
+            Text(L("创意会改动歌词，可能无法撤销或出现错误。确定要继续吗？"))
+        }
+    }
+
+    private func startImagine() {
+        if action == .translate {
+            ImagineLanguageMemory.remember(targetLanguage)
+        }
+        onRun(action, targetLanguage, prompt, keepCurrentFormat)
+    }
+}
+
+final class ImagineCancelMonitor: ObservableObject {
+    private var token: Any?
+
+    func start(_ onCancel: @escaping () -> Void) {
+        stop()
+        token = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            // 53 is Escape.
+            if flags.contains(.command), event.keyCode == 53 {
+                onCancel()
+                return nil
+            }
+            return event
+        }
+    }
+
+    func stop() {
+        if let token {
+            NSEvent.removeMonitor(token)
+            self.token = nil
+        }
+    }
+}
+
 /// v1.7.9 GT3: 拖动开关关闭时用——自定义左滑删除（ScrollView+LazyVStack 下实现）
 /// 药丸形状删除按钮 + 跟随左滑变形动效 + 点击其他段落自动恢复
 /// 手势挂在整个段落，minimumDistance: 40 严格过滤，水平方向判断避免与文本选择冲突
@@ -758,29 +1190,48 @@ struct SwipeDeleteSectionWrapper: View {
     let section: SongSection
     let languages: [String]
     let song: Song
+    @Binding var sidePanel: SectionSidePanel
+    let onHeaderControl: (SectionHeaderControl) -> Void
     @Binding var activeSectionID: UUID?
     @Binding var focusBodyOnNextSectionChange: Bool
     let onDelete: () -> Void
+    let onImagine: () -> Void
 
     @State private var offsetX: CGFloat = 0
     @State private var startOffsetX: CGFloat = 0
     @State private var dragStartedHorizontal: Bool = false
 
-    private let deleteWidth: CGFloat = 80
+    private let actionWidth: CGFloat = 80
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            // 底层：药丸形状删除按钮（固定在右侧，被内容覆盖时不可见）
-            Button(role: .destructive, action: onDelete) {
-                Image(systemName: "trash.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                    .frame(width: deleteWidth - 10, height: 36)
-                    .background(Capsule().fill(Color.red))
-                    .contentShape(Capsule())
+        ZStack {
+            HStack(spacing: 0) {
+                Button {
+                    closeSwipe()
+                    onImagine()
+                } label: {
+                    Image(systemName: "sparkles")
+                        .appFont(16)
+                        .foregroundStyle(.white)
+                        .frame(width: actionWidth - 10, height: 36)
+                        .background(Capsule().fill(Color.blue))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 5)
+                .accessibilityLabel(L("段落Imagine"))
+                Spacer(minLength: 0)
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash.fill")
+                        .appFont(16)
+                        .foregroundStyle(.white)
+                        .frame(width: actionWidth - 10, height: 36)
+                        .background(Capsule().fill(Color.red))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 5)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, 5)
 
             // 上层：段落内容（左滑偏移露出底层药丸按钮）
             SectionEditorView(
@@ -788,7 +1239,9 @@ struct SwipeDeleteSectionWrapper: View {
                 languages: languages,
                 song: song,
                 activeSectionID: $activeSectionID,
-                focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange
+                focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
+                sidePanel: $sidePanel,
+                onHeaderControl: onHeaderControl
             )
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(NSColor.textBackgroundColor))
@@ -814,15 +1267,18 @@ struct SwipeDeleteSectionWrapper: View {
                     guard dragStartedHorizontal else { return }
                     let newOffset = startOffsetX + value.translation.width
                     withAnimation(.interactiveSpring()) {
-                        offsetX = min(max(newOffset, -deleteWidth), 0)
+                        offsetX = min(max(newOffset, -actionWidth), actionWidth)
                     }
                 }
                 .onEnded { _ in
                     if dragStartedHorizontal {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                            if offsetX < -deleteWidth / 2 {
-                                offsetX = -deleteWidth
-                                startOffsetX = -deleteWidth
+                            if offsetX > actionWidth / 2 {
+                                offsetX = actionWidth
+                                startOffsetX = actionWidth
+                            } else if offsetX < -actionWidth / 2 {
+                                offsetX = -actionWidth
+                                startOffsetX = -actionWidth
                             } else {
                                 offsetX = 0
                                 startOffsetX = 0
@@ -832,23 +1288,24 @@ struct SwipeDeleteSectionWrapper: View {
                     dragStartedHorizontal = false
                 }
         )
-        // 点击内容区：若删除按钮已展开则先关闭
+        // 点击内容区：若按钮已展开则先关闭
         .onTapGesture {
             if offsetX != 0 {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    offsetX = 0
-                    startOffsetX = 0
-                }
+                closeSwipe()
             }
         }
         // v1.7.9 GT3: 激活段落变化时（点击其他段落）自动关闭删除按钮
         .onChange(of: activeSectionID) { _, _ in
             if offsetX != 0 {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    offsetX = 0
-                    startOffsetX = 0
-                }
+                closeSwipe()
             }
+        }
+    }
+
+    private func closeSwipe() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            offsetX = 0
+            startOffsetX = 0
         }
     }
 }
@@ -864,10 +1321,10 @@ struct LanguageToggleChip: View {
         Button(action: onToggle) {
             HStack(spacing: 6) {
                 Text(language.localizedDisplayName)
-                    .font(.system(size: 12, weight: isOn ? .semibold : .regular))
+                    .appFont(12, weight: isOn ? .semibold : .regular)
                 if isOn {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12))
+                        .appFont(12)
                         .foregroundStyle(.tint)
                 }
             }

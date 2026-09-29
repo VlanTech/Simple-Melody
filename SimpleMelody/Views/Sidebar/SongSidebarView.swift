@@ -85,13 +85,13 @@ struct SongSidebarView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Image(systemName: "music.note")
-                .font(.system(size: 14, weight: .medium))
+                .appFont(14, weight: .medium)
                 .foregroundStyle(.tint)
                 .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(L("曲目库"))
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(14, weight: .semibold)
                 Text("\(songs.count) \(L("首"))")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -145,13 +145,13 @@ struct SongSidebarView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.tint)
                 Text(selectionCountText)
-                    .font(.system(size: 12, weight: .medium))
+                    .appFont(12, weight: .medium)
                 Spacer()
                 Button {
                     selectedSongIDs.removeAll()
                 } label: {
                     Text(L("取消选择"))
-                        .font(.system(size: 11))
+                        .appFont(11)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -340,7 +340,7 @@ struct SongSidebarView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "music.note.list")
-                .font(.system(size: 32))
+                .appFont(32)
                 .foregroundStyle(.tertiary)
             Text(searchText.isEmpty ? L("还没有歌曲") : L("没有匹配的歌曲"))
                 .font(.callout)
@@ -840,7 +840,7 @@ private struct FolderSection: View {
                     Image(systemName: "folder.fill")
                         .foregroundStyle(Color(hex: folder.colorHex) ?? .accentColor)
                     Text(folder.name)
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(12, weight: .semibold)
                         .lineLimit(1)
                     Spacer()
                     Text("\(folder.orderedSongs.count)")
@@ -1174,7 +1174,7 @@ private struct TrashSection: View {
                     Image(systemName: "trash.fill")
                         .foregroundStyle(Color(hex: folder.colorHex) ?? .red)
                     Text(L("回收站"))
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(12, weight: .semibold)
                         .foregroundStyle(.red)
                     Spacer()
                     Text("\(folder.orderedSongs.count)")
@@ -1212,11 +1212,11 @@ private struct SongRow: View {
                     .frame(width: 32, height: 32)
                 Image(systemName: "music.note")
                     .foregroundStyle(.white)
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(14, weight: .semibold)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title.isEmpty ? L("未命名") : song.title)
-                    .font(.system(size: 13, weight: .medium))
+                    .appFont(13, weight: .medium)
                     .lineLimit(1)
                 HStack(spacing: 4) {
                     if !song.artist.isEmpty {

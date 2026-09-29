@@ -45,6 +45,7 @@
 		A001000000000000000000EB /* AppReleaseMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EB /* AppReleaseMath.swift */; };
 		A001000000000000000000EC /* ChangelogFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EC /* ChangelogFold.swift */; };
 		A001000000000000000000ED /* SongUICopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000ED /* SongUICopy.swift */; };
+		A001000000000000000000EF /* ImagineWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EF /* ImagineWorkflow.swift */; };
 		A001000000000000000000EE /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EE /* UpdateChecker.swift */; };
 /* End PBXBuildFile section */
 		A001000000000000000000D5 /* SongFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D5 /* SongFolder.swift */; };
@@ -92,6 +93,7 @@
 		B001000000000000000000EB /* AppReleaseMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppReleaseMath.swift; sourceTree = "<group>"; };
 		B001000000000000000000EC /* ChangelogFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogFold.swift; sourceTree = "<group>"; };
 		B001000000000000000000ED /* SongUICopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongUICopy.swift; sourceTree = "<group>"; };
+		B001000000000000000000EF /* ImagineWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagineWorkflow.swift; sourceTree = "<group>"; };
 		B001000000000000000000EE /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 		B001000000000000000000D5 /* SongFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongFolder.swift; sourceTree = "<group>"; };
@@ -175,6 +177,7 @@
 				B001000000000000000000EB /* AppReleaseMath.swift */,
 				B001000000000000000000EC /* ChangelogFold.swift */,
 				B001000000000000000000ED /* SongUICopy.swift */,
+				B001000000000000000000EF /* ImagineWorkflow.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -388,6 +391,7 @@
 				A001000000000000000000EB /* AppReleaseMath.swift in Sources */,
 				A001000000000000000000EC /* ChangelogFold.swift in Sources */,
 				A001000000000000000000ED /* SongUICopy.swift in Sources */,
+				A001000000000000000000EF /* ImagineWorkflow.swift in Sources */,
 				A001000000000000000000EE /* UpdateChecker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -535,7 +539,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.0;
+				MARKETING_VERSION = 1.8.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -563,7 +567,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.0;
+				MARKETING_VERSION = 1.8.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

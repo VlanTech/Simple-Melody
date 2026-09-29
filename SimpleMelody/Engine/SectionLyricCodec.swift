@@ -17,6 +17,86 @@ enum SectionSidePanel: Equatable {
     }
 }
 
+enum SectionHeaderControl: Equatable {
+    case notes
+    case translation
+    case collapse
+}
+
+struct SectionPanelState: Equatable {
+    var panel: SectionSidePanel
+    var collapsed: Bool
+}
+
+enum SectionBatchAction {
+    /// Command applies the clicked section's direction to every section.
+    /// Sections already in the resulting state are left unchanged.
+    /// Without Command, only `clickedIndex` changes. Opening notes or translation
+    /// closes the other panel only on sections whose state actually changes.
+    static func apply(
+        states: [SectionPanelState],
+        clickedIndex: Int,
+        control: SectionHeaderControl,
+        commandHeld: Bool
+    ) -> [SectionPanelState] {
+        guard clickedIndex >= 0, clickedIndex < states.count else { return states }
+        if !commandHeld {
+            var next = states
+            next[clickedIndex] = applyOne(states[clickedIndex], control: control)
+            return next
+        }
+        let clicked = states[clickedIndex]
+        return states.map { state in
+            switch control {
+            case .notes:
+                if clicked.panel == .notes {
+                    return state.panel == .notes
+                        ? SectionPanelState(panel: .none, collapsed: state.collapsed)
+                        : state
+                }
+                return state.panel == .notes
+                    ? state
+                    : SectionPanelState(panel: .notes, collapsed: state.collapsed)
+            case .translation:
+                if clicked.panel == .translation {
+                    return state.panel == .translation
+                        ? SectionPanelState(panel: .none, collapsed: state.collapsed)
+                        : state
+                }
+                return state.panel == .translation
+                    ? state
+                    : SectionPanelState(panel: .translation, collapsed: state.collapsed)
+            case .collapse:
+                if clicked.collapsed {
+                    return state.collapsed
+                        ? SectionPanelState(panel: state.panel, collapsed: false)
+                        : state
+                }
+                return state.collapsed
+                    ? state
+                    : SectionPanelState(panel: state.panel, collapsed: true)
+            }
+        }
+    }
+
+    static func applyOne(_ state: SectionPanelState, control: SectionHeaderControl) -> SectionPanelState {
+        switch control {
+        case .notes:
+            return SectionPanelState(
+                panel: SectionSidePanel.toggling(state.panel, targeting: .notes),
+                collapsed: state.collapsed
+            )
+        case .translation:
+            return SectionPanelState(
+                panel: SectionSidePanel.toggling(state.panel, targeting: .translation),
+                collapsed: state.collapsed
+            )
+        case .collapse:
+            return SectionPanelState(panel: state.panel, collapsed: !state.collapsed)
+        }
+    }
+}
+
 struct SectionLyricSnapshot: Equatable {
     var marker: String
     var body: String

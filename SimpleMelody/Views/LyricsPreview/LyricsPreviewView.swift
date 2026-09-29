@@ -53,13 +53,13 @@ struct LyricsPreviewView: View {
 
             // 曲名
             Text(song.title.isEmpty ? L("未命名歌曲") : song.title)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .appFont(22, weight: .bold, design: .rounded)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
             // 艺术家
             Text(song.artist.isEmpty ? L("未知艺术家") : song.artist)
-                .font(.system(size: 14))
+                .appFont(14)
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,7 +75,7 @@ struct LyricsPreviewView: View {
         if song.orderedSections.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "music.note.list")
-                    .font(.system(size: 36))
+                    .appFont(36)
                     .foregroundStyle(.tertiary)
                 Text(L("暂无歌词"))
                     .font(.callout)
@@ -102,7 +102,7 @@ struct LyricsPreviewView: View {
         VStack(alignment: .leading, spacing: 8) {
             // 段落 tag（小号灰字，像音乐 App 的章节标签）
             Text(section.marker)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .appFont(11, weight: .semibold, design: .monospaced)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
@@ -110,41 +110,22 @@ struct LyricsPreviewView: View {
                     Capsule().fill(ThemeColor.mediumFill)
                 )
 
-            // 歌词正文
-            if section.body.isEmpty {
-                Text("　")
-                    .font(.system(size: isActive ? 16 : 14))
-                    .foregroundStyle(.secondary)
+            if appSettings.previewCaptionSource == .translation {
+                translationLines(section, isActive: isActive)
             } else {
-                Text(section.body)
-                    .font(.system(size: isActive ? 16 : 14))
-                    .foregroundStyle(isActive ? Color.accentColor : Color.primary)
-                    .lineSpacing(5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isActive ? Color.accentColor.opacity(0.10) : Color.clear)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(isActive ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
-                    )
-            }
-
-            // 段落下方小字：笔记或译文（空则隐藏）
-            if let caption = LyricsPreviewCaption.text(
-                notes: section.notes,
-                translation: section.translation,
-                source: appSettings.previewCaptionSource
-            ) {
-                Text(caption)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(3)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 2)
+                lyricBlock(section.body, isActive: isActive)
+                if let caption = LyricsPreviewCaption.text(
+                    notes: section.notes,
+                    translation: section.translation,
+                    source: .notes
+                ) {
+                    Text(caption)
+                        .appFont(11)
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 10)
+                        .padding(.top, 2)
+                }
             }
         }
         .id(section.id)
@@ -153,5 +134,71 @@ struct LyricsPreviewView: View {
             onSelectSection(section.id)
         }
         .help(L("双击跳转到段落"))
+    }
+
+    /// 笔记模式：整段歌词在上，灰色小字在下。
+    @ViewBuilder
+    private func lyricBlock(_ body: String, isActive: Bool) -> some View {
+        if body.isEmpty {
+            Text("　")
+                .appFont(isActive ? 16 : 14)
+                .foregroundStyle(.secondary)
+        } else {
+            Text(body)
+                .appFont(isActive ? 16 : 14)
+                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                .lineSpacing(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(sectionHighlight(isActive: isActive))
+                .overlay(sectionStroke(isActive: isActive))
+        }
+    }
+
+    /// 译文模式：每一行歌词下面紧跟一行灰色译文。
+    @ViewBuilder
+    private func translationLines(_ section: SongSection, isActive: Bool) -> some View {
+        let rows = LyricsPreviewCaption.translationRows(
+            body: section.body,
+            translation: section.translation
+        )
+        if rows.isEmpty {
+            Text("　")
+                .appFont(isActive ? 16 : 14)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    VStack(alignment: .leading, spacing: 1) {
+                        if !row.lyric.isEmpty || row.translation == nil {
+                            Text(row.lyric.isEmpty ? " " : row.lyric)
+                                .appFont(isActive ? 16 : 14)
+                                .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+                        }
+                        if let line = row.translation {
+                            Text(line)
+                                .appFont(11)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(sectionHighlight(isActive: isActive))
+            .overlay(sectionStroke(isActive: isActive))
+        }
+    }
+
+    private func sectionHighlight(isActive: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(isActive ? Color.accentColor.opacity(0.10) : Color.clear)
+    }
+
+    private func sectionStroke(isActive: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .strokeBorder(isActive ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
     }
 }

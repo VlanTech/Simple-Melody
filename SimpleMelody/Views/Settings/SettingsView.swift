@@ -10,12 +10,17 @@ import AppKit
 struct SettingsView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
 
     @ObservedObject private var loc = LocalizationManager.shared
     @ObservedObject private var appSettings = AppSettings.shared
 
     @State private var isBackingUp = false
+    @State private var apiBaseURL = ""
+    @State private var apiModelName = ""
+    @State private var apiKeyDraft = ""
+    @State private var apiTesting = false
+    @State private var apiTestMessage = ""
+    private let apiKeyStore = LLMAPIKeyStore()
 
     /// v1.7.9 GT: 段落拖动开关（默认关闭，开启时弹警告）
     @AppStorage("sectionDragEnabled") private var sectionDragEnabled: Bool = false
@@ -52,27 +57,115 @@ struct SettingsView: View {
                         .labelsHidden()
                     }
 
-                    // 界面语言
-                    SettingsGroup(title: L("界面语言"), icon: "globe") {
+                    SettingsGroup(title: L("字体大小"), icon: "textformat.size") {
                         VStack(alignment: .leading, spacing: 8) {
-                            FlowLayout(spacing: 6) {
-                                ForEach(AppLanguage.allCases) { lang in
-                                    LanguageChip(
-                                        language: lang,
-                                        isSelected: loc.language == lang
-                                    ) {
-                                        loc.setLanguage(lang)
+                            HStack(spacing: 10) {
+                                Text(L("较小"))
+                                    .appFont(11)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                                Slider(
+                                    value: $appSettings.fontScale,
+                                    in: Double(AppFontMetrics.minScale)...Double(AppFontMetrics.maxScale),
+                                    step: 0.05
+                                )
+                                Text(L("较大"))
+                                    .appFont(16, weight: .medium)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                            }
+                            Text("\(Int((appSettings.fontScale * 100).rounded()))%")
+                                .appFont(12)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+
+                    // 界面语言：列表，含跟随系统。不再为每种语言放一颗按钮。
+                    SettingsGroup(title: L("界面语言"), icon: "globe") {
+                        Picker(L("界面语言"), selection: languageSelection) {
+                            Text(L("跟随系统")).tag(LanguagePreference.followSystemToken)
+                            ForEach(AppLanguage.allCases) { lang in
+                                Text(lang.displayName).tag(lang.rawValue)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+                        .labelsHidden()
+                    }
+
+                    SettingsGroup(title: L("接入大模型"), icon: "key") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L("供以后的注音、翻译等功能使用"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(L("供应商网址"))
+                                .appFont(13, weight: .medium)
+                            TextField(L("供应商网址"), text: $apiBaseURL)
+                                .textFieldStyle(.roundedBorder)
+                            Text(L("模型名"))
+                                .appFont(13, weight: .medium)
+                            TextField(L("模型名"), text: $apiModelName)
+                                .textFieldStyle(.roundedBorder)
+                            Text(L("模型名可以留空"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(L("API Key"))
+                                .appFont(13, weight: .medium)
+                            SecureField(L("API Key"), text: $apiKeyDraft)
+                                .textFieldStyle(.roundedBorder)
+                            HStack {
+                                Button(L("保存")) {
+                                    apiKeyStore.save(LLMConnection(
+                                        baseURL: apiBaseURL,
+                                        modelName: apiModelName,
+                                        apiKey: apiKeyDraft
+                                    ))
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                Button(L("清除")) {
+                                    apiKeyStore.clear()
+                                    apiBaseURL = ""
+                                    apiModelName = ""
+                                    apiKeyDraft = ""
+                                    apiTestMessage = ""
+                                }
+                                .controlSize(.small)
+                                Button(L("测试连接")) {
+                                    let connection = LLMConnection(
+                                        baseURL: apiBaseURL,
+                                        modelName: apiModelName,
+                                        apiKey: apiKeyDraft
+                                    )
+                                    guard ImagineAPI.chatRequest(connection: connection, system: "ping", user: "ping") != nil else {
+                                        apiTestMessage = L("请先填写供应商网址和 API Key")
+                                        return
+                                    }
+                                    apiTesting = true
+                                    apiTestMessage = L("正在测试连接")
+                                    Task {
+                                        let outcome = await ImagineAPI.checkLive(connection)
+                                        await MainActor.run {
+                                            apiTesting = false
+                                            apiTestMessage = outcome == .success ? L("连接成功") : L("连接失败")
+                                        }
                                     }
                                 }
+                                .controlSize(.small)
+                                .disabled(apiTesting)
+                                Spacer()
                             }
-                            HStack(spacing: 4) {
-                                Image(systemName: "sparkles")
-                                    .imageScale(.small)
-                                    .foregroundStyle(.secondary)
-                                Text(L("自动识别系统语言"))
+                            if !apiTestMessage.isEmpty {
+                                Text(apiTestMessage)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            Text(L("建议选用参数量更大的模型，以便翻译、注音和创作更准确"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
 
@@ -83,7 +176,7 @@ struct SettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(L("一键备份曲目库"))
-                                        .font(.system(size: 13, weight: .medium))
+                                        .appFont(13, weight: .medium)
                                     Text(L("备份曲目库（含文件夹结构）"))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -112,7 +205,7 @@ struct SettingsView: View {
                             HStack(alignment: .center, spacing: 10) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(L("删除前显示确认弹窗"))
-                                        .font(.system(size: 13, weight: .medium))
+                                        .appFont(13, weight: .medium)
                                         .lineLimit(1)
                                     Text(L("删除歌曲、段落、灵感前提示确认（暂不可恢复）"))
                                         .font(.caption)
@@ -137,9 +230,9 @@ struct SettingsView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(L("拖动段落重排"))
-                                    .font(.system(size: 13, weight: .medium))
+                                    .appFont(13, weight: .medium)
                                 Text(L("段落拖动开关说明"))
-                                    .font(.system(size: 11))
+                                    .appFont(11)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
@@ -174,7 +267,7 @@ struct SettingsView: View {
                                         .foregroundStyle(.tint)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(L("技能炼成"))
-                                            .font(.system(size: 13, weight: .medium))
+                                            .appFont(13, weight: .medium)
                                         Text(L("把 Simple Melody 的歌词 Skill 导出给 AI Agent 用"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
@@ -202,7 +295,7 @@ struct SettingsView: View {
                                         .foregroundStyle(.tint)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(L("查看更新日志"))
-                                            .font(.system(size: 13, weight: .medium))
+                                            .appFont(13, weight: .medium)
                                         Text(L("查看每个版本的更新内容"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
@@ -225,7 +318,7 @@ struct SettingsView: View {
                                         .foregroundStyle(.tint)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(L("使用指南"))
-                                            .font(.system(size: 13, weight: .medium))
+                                            .appFont(13, weight: .medium)
                                         Text(L("软件介绍 + 各功能使用说明（随界面语言切换）"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
@@ -245,7 +338,7 @@ struct SettingsView: View {
                     SettingsGroup(title: L("歌词预览"), icon: "text.viewfinder") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(L("预览段落小字"))
-                                .font(.system(size: 13, weight: .medium))
+                                .appFont(13, weight: .medium)
                             Text(L("预览段落小字说明"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -269,8 +362,31 @@ struct SettingsView: View {
                 .padding(16)
             }
         }
-        .frame(width: 480, height: 720)
+        .frame(width: RightColumnMetrics.layout(for: .settings).minWidth)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            let saved = apiKeyStore.current()
+            apiBaseURL = saved.baseURL
+            apiModelName = saved.modelName
+            apiKeyDraft = saved.apiKey
+        }
+    }
+
+    /// 跟随系统时选中「跟随系统」，而不是它此刻解析出的那种语言。
+    private var languageSelection: Binding<String> {
+        Binding(
+            get: {
+                loc.followsSystem ? LanguagePreference.followSystemToken : loc.language.rawValue
+            },
+            set: { raw in
+                if raw == LanguagePreference.followSystemToken {
+                    loc.setFollowSystem()
+                } else if let lang = AppLanguage(rawValue: raw) {
+                    loc.setLanguage(lang)
+                }
+            }
+        )
     }
 
     // MARK: Header
@@ -278,20 +394,11 @@ struct SettingsView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Image(systemName: "gearshape.fill")
-                .font(.system(size: 18, weight: .medium))
+                .appFont(18, weight: .medium)
                 .foregroundStyle(.tint)
             Text(L("设置"))
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(16, weight: .semibold)
             Spacer()
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .imageScale(.large)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
@@ -302,81 +409,42 @@ struct SettingsView: View {
 
     // MARK: 下载链接（v1.7.7 Beta：在版本信息上方；v1.8.0：检查更新 + 启动自检）
 
+    /// 下载、检查更新、启动时检查放在同一个二级菜单里，不再占一级分组。
     private var downloadLinkSection: some View {
-        SettingsGroup(title: L("下载链接"), icon: "arrow.down.app.fill") {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
+            Menu {
                 Button {
                     if let url = URL(string: AppReleaseMath.downloadPageURL) {
                         NSWorkspace.shared.open(url)
                     }
                 } label: {
-                    HStack {
-                        Image(systemName: "arrow.down.app.fill")
-                            .foregroundStyle(.tint)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L("下载链接"))
-                                .font(.system(size: 13, weight: .medium))
-                            Text("github.com/VlanTech/Simple-Melody")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.right.square")
-                            .imageScale(.small)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
+                    Label(L("下载链接"), systemImage: "arrow.up.right.square")
                 }
-                .buttonStyle(.plain)
-
-                Divider()
-
+                Button {
+                    updateChecker.checkFromSettings()
+                } label: {
+                    Label(L("检查版本更新"), systemImage: "arrow.clockwise")
+                }
+                .disabled(updateChecker.isChecking)
+                Toggle(L("启动时检查更新"), isOn: $appSettings.autoCheckUpdates)
+            } label: {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L("检查版本更新"))
-                            .font(.system(size: 13, weight: .medium))
-                        if !updateChecker.statusText.isEmpty {
-                            Text(updateChecker.statusText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Image(systemName: "arrow.down.app.fill")
+                        .foregroundStyle(.tint)
+                    Text(L("下载链接"))
+                        .appFont(13, weight: .medium)
                     Spacer()
-                    Button {
-                        updateChecker.checkFromSettings()
-                    } label: {
-                        if updateChecker.isChecking {
-                            ProgressView()
-                                .controlSize(.small)
-                                .frame(width: 70)
-                        } else {
-                            Text(L("检查版本更新"))
-                                .font(.caption)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(updateChecker.isChecking)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .imageScale(.small)
+                        .foregroundStyle(.tertiary)
                 }
-
-                Divider()
-
-                HStack(alignment: .center, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L("启动时检查更新"))
-                            .font(.system(size: 13, weight: .medium))
-                            .lineLimit(1)
-                        Text(L("启动时检查更新说明"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    SystemSwitchToggle(isOn: $appSettings.autoCheckUpdates)
-                        .frame(width: 38, height: 22)
-                        .fixedSize()
-                }
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            if !updateChecker.statusText.isEmpty {
+                Text(updateChecker.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -396,7 +464,7 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Simple Melody")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .appFont(16, weight: .bold, design: .rounded)
                     Text("\(currentVersion) · \(L("Apple Silicon 原生"))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -543,7 +611,7 @@ struct SettingsGroup<Content: View>: View {
                     .imageScale(.small)
                     .foregroundStyle(.secondary)
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(12, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
             }
@@ -559,38 +627,6 @@ struct SettingsGroup<Content: View>: View {
                         .strokeBorder(Color.secondary.opacity(0.1), lineWidth: 1)
                 )
         }
-    }
-}
-
-/// 语言选择 chip
-struct LanguageChip: View {
-    let language: AppLanguage
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Text(language.displayName)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.caption2.weight(.bold))
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08))
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(isSelected ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
-            )
-            .foregroundStyle(isSelected ? Color.accentColor : .primary)
-        }
-        .buttonStyle(.plain)
     }
 }
 

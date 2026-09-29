@@ -53,6 +53,41 @@ final class ThemeManager: ObservableObject {
 //   - 浅色模式：primary = 黑，背景 = 白 → 黑色 6% 是清晰可见的浅灰
 //   - 深色模式：primary = 白，背景 = 黑 → 白色 6% 是清晰可见的浅灰
 //   - Color.secondary 在两种模式下都是浅灰，再叠 opacity 在浅色背景上会失明
+private struct AppFontScaleKey: EnvironmentKey {
+    static let defaultValue: CGFloat = AppFontMetrics.defaultScale
+}
+
+extension EnvironmentValues {
+    var appFontScale: CGFloat {
+        get { self[AppFontScaleKey.self] }
+        set { self[AppFontScaleKey.self] = AppFontMetrics.clamp(newValue) }
+    }
+}
+
+private struct AppFontModifier: ViewModifier {
+    @Environment(\.appFontScale) private var scale
+    var size: CGFloat
+    var weight: Font.Weight
+    var design: Font.Design
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: AppFontMetrics.size(size, scale: scale), weight: weight, design: design))
+    }
+}
+
+extension View {
+    func appFont(_ size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> some View {
+        modifier(AppFontModifier(size: size, weight: weight, design: design))
+    }
+
+    func appTypography(_ scale: CGFloat) -> some View {
+        let clamped = AppFontMetrics.clamp(scale)
+        return self
+            .environment(\.appFontScale, clamped)
+            .environment(\.font, .system(size: AppFontMetrics.size(AppFontMetrics.defaultBodySize, scale: clamped)))
+    }
+}
+
 enum ThemeColor {
     /// 最淡的背景填充（按钮 / panel 内层）— 浅色 6% / 深色 6%
     static var subtleFill: Color { Color.primary.opacity(0.06) }

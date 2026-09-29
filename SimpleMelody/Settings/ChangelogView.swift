@@ -8,11 +8,14 @@ import SwiftUI
 // MARK: - 独立 Window（用 WindowGroup 是为了 v1.4 beta 兼容性；macOS 14+ 可改用 Window）
 
 struct ChangelogWindow: View {
- var body: some View {
- ChangelogView()
- .frame(minWidth: 560, idealWidth: 640, maxWidth: 720,
- minHeight: 420, idealHeight: 560, maxHeight: 720)
- }
+    var body: some View {
+        let frame = AppFontMetrics.changelogFrame
+        ChangelogView()
+            .frame(
+                minWidth: frame.minWidth, idealWidth: frame.idealWidth, maxWidth: frame.maxWidth,
+                minHeight: frame.minHeight, idealHeight: frame.idealHeight, maxHeight: frame.maxHeight
+            )
+    }
 }
 
 // MARK: - 视图本体
@@ -27,10 +30,10 @@ struct ChangelogView: View {
  // Header
  HStack(spacing: 10) {
  Image(systemName: "doc.text.magnifyingglass")
- .font(.system(size: 18, weight: .medium))
+ .appFont(18, weight: .medium)
  .foregroundStyle(.tint)
  Text(L("更新日志"))
- .font(.system(size: 16, weight: .semibold))
+ .appFont(16, weight: .semibold)
  Spacer()
  Button {
  dismiss()
@@ -39,7 +42,7 @@ struct ChangelogView: View {
  Image(systemName: "xmark")
  .imageScale(.small)
  Text(L("关闭"))
- .font(.system(size: 12, weight: .medium))
+ .appFont(12, weight: .medium)
  }
  .padding(.horizontal, 10)
  .padding(.vertical, 5)
@@ -84,7 +87,7 @@ struct ChangelogView: View {
  // 版本头
  HStack(alignment: .firstTextBaseline, spacing: 8) {
  Text(entry.version)
- .font(.system(size: 18, weight: .bold, design: .rounded))
+ .appFont(18, weight: .bold, design: .rounded)
  .foregroundStyle(.tint)
  Text(entry.date)
  .font(.caption.monospacedDigit())
@@ -100,7 +103,7 @@ struct ChangelogView: View {
  Spacer()
  }
  Text(ChangelogDisplayText.fromMarkdown(entry.markdown(for: lang)))
- .font(.system(size: 13))
+ .appFont(13)
  .lineSpacing(4)
  .textSelection(.enabled)
  .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,18 +122,22 @@ enum ChangelogContent {
  let isLatest: Bool
  /// v1.7.5 Gamma: 简中 markdown（fallback）
  let bodyMarkdown: String
- /// v1.7.5 Gamma: 繁中 / 英文 / 日文 markdown（optional，没填则 fallback 到简中）
+ /// 繁中 / 英文 / 日文 / 韩文 / 西班牙文（optional，没填则 fallback 到简中）
  var bodyMarkdownZHT: String? = nil
  var bodyMarkdownEN: String? = nil
  var bodyMarkdownJA: String? = nil
+ var bodyMarkdownKO: String? = nil
+ var bodyMarkdownES: String? = nil
 
- /// v1.7.5 Gamma: 按语言返回 markdown（缺该语言时 fallback 到简中）
+ /// 按语言返回正文（缺该语言时 fallback 到简中）
  func markdown(for lang: AppLanguage) -> String {
  switch lang {
  case .simplifiedChinese: return bodyMarkdown
  case .traditionalChinese: return bodyMarkdownZHT ?? bodyMarkdown
  case .english: return bodyMarkdownEN ?? bodyMarkdown
  case .japanese: return bodyMarkdownJA ?? bodyMarkdown
+ case .korean: return bodyMarkdownKO ?? bodyMarkdown
+ case .spanish: return bodyMarkdownES ?? bodyMarkdown
  }
  }
  }
@@ -144,7 +151,9 @@ enum ChangelogContent {
                     bodyMarkdown: $0.bodyMarkdown,
                     bodyMarkdownZHT: $0.bodyMarkdownZHT ?? "",
                     bodyMarkdownEN: $0.bodyMarkdownEN ?? "",
-                    bodyMarkdownJA: $0.bodyMarkdownJA ?? ""
+                    bodyMarkdownJA: $0.bodyMarkdownJA ?? "",
+                    bodyMarkdownKO: $0.bodyMarkdownKO ?? "",
+                    bodyMarkdownES: $0.bodyMarkdownES ?? ""
                 )
             }
             return ChangelogFold.fold(rows).map { row in
@@ -155,686 +164,1448 @@ enum ChangelogContent {
                     bodyMarkdown: row.bodyMarkdown,
                     bodyMarkdownZHT: row.bodyMarkdownZHT.isEmpty ? nil : row.bodyMarkdownZHT,
                     bodyMarkdownEN: row.bodyMarkdownEN.isEmpty ? nil : row.bodyMarkdownEN,
-                    bodyMarkdownJA: row.bodyMarkdownJA.isEmpty ? nil : row.bodyMarkdownJA
+                    bodyMarkdownJA: row.bodyMarkdownJA.isEmpty ? nil : row.bodyMarkdownJA,
+                    bodyMarkdownKO: row.bodyMarkdownKO.isEmpty ? nil : row.bodyMarkdownKO,
+                    bodyMarkdownES: row.bodyMarkdownES.isEmpty ? nil : row.bodyMarkdownES
                 )
             }
         }
 
 static let entries: [Entry] = [
         Entry(
-            version: "v1.8.0",
-            date: "2026-09-19",
+            version: "v1.8.2",
+            date: "2026-09-25",
             isLatest: true,
             bodyMarkdown: """
 【新增】
-• 设置「下载链接」可检查 GitHub 版本更新；启动默认静默自检，仅在发现新版本时弹窗说明并支持前往下载
-• 歌词预览段落下方小字可在笔记 / 译文间切换（默认笔记，空内容不显示）
-• 删除确认列出译文条数
+• 歌词段落向右滑，左边会出现蓝色的 Imagine 按钮，只处理这一段。导出按钮左边也有一个同样的 Imagine，用来处理整首歌
+• 点开后可以选择翻译或创意。翻译要选目标语言，下次会记住上次的语言，也可以另外写要求。创意会根据这首歌已有的内容重写指定段落或整首歌
+• 整首歌的 Imagine 还可以让模型填写歌曲语言、速度、调式和节拍
+• 模型名可以留空。设置里可以测试连接是否可用，并建议选用参数量更大的模型，翻译和创作会更准确
+• 整首歌的创意会按段落拆开写回，不再全部塞进同一段歌词。创意可选「依照当前格式」，默认开启
+• 创意执行前会再确认一次，因为改动可能无法撤销或出错
+• 段落Imagine不能干 Imagine 的活：不能改整首歌或其他段落，遇到这种情况会停下来并提醒
+• 段落Imagine的创意会把整首歌交给模型作参考，只写回当前这一段，好让文风一致
+• 整首歌的创意会补上空白的歌名、语言、速度、调式和节拍；歌名写在标题，不写进灵感设定。没有修改必要时这些字段可以省略
+• 设置里可以用滑块调节界面字体大小。只改文字大小，窗口和分栏宽度不变
+• 打开软件时主窗口默认铺满屏幕
 """,
             bodyMarkdownZHT: """
 【新增】
-• 設定「下載連結」可檢查 GitHub 版本更新；啟動預設靜默自檢，僅在發現新版本時彈窗說明並支援前往下載
-• 歌詞預覽段落下方小字可在筆記 / 譯文間切換（預設筆記，空內容不顯示）
-• 刪除確認列出譯文條數
+• 歌詞段落向右滑，左邊會出現藍色的 Imagine 按鈕，只處理這一段。匯出按鈕左邊也有一個同樣的 Imagine，用來處理整首歌
+• 點開後可以選擇翻譯或創意。翻譯要選目標語言，下次會記住上次的語言，也可以另外寫要求。創意會根據這首歌已有的內容重寫指定段落或整首歌
+• 整首歌的 Imagine 還可以讓模型填寫歌曲語言、速度、調式和節拍
+• 模型名可以留空。設定裡可以測試連線是否可用，並建議選用參數量更大的模型，翻譯和創作會更準確
+• 整首歌的創意會按段落拆開寫回，不再全部塞進同一段歌詞。創意可選「依照當前格式」，預設開啟
+• 創意執行前會再確認一次，因為改動可能無法撤銷或出錯
+• 段落Imagine不能幹 Imagine 的活：不能改整首歌或其他段落，遇到這種情況會停下來並提醒
+• 段落Imagine的創意會把整首歌交給模型作參考，只寫回當前這一段，好讓文風一致
+• 整首歌的創意會補上空白的歌名、語言、速度、調式和節拍；歌名寫在標題，不寫進靈感設定。沒有修改必要時這些欄位可以省略
+• 設定裡可以用滑桿調節介面字體大小。只改文字大小，視窗和分欄寬度不變
+• 打開軟體時主視窗預設鋪滿螢幕
 """,
             bodyMarkdownEN: """
 【New】
-• Settings Download Link can check GitHub for updates; launch self-check is silent and only alerts when a newer release exists, with a manual download action
-• Lyrics preview caption under each section can switch between notes and translation (notes by default; empty stays hidden)
-• Delete confirmation lists the translation count
+• Swipe a lyric section to the right and a blue Imagine button appears on the left. It changes only that section. The same Imagine button sits to the left of Export and can change the whole song
+• It offers Translation or Creative. Translation asks for a target language, remembers it next time, and can take an extra request. Creative rewrites the chosen section or the whole song from what the song already contains
+• The whole-song Imagine can also let the model fill in language, tempo, key, and meter
+• The model name can be left empty. Settings includes Test connection, and suggests a large-parameter model so translation and writing stay more accurate
+• Whole-song Creative splits labeled sections in order instead of dumping them into one lyrics box, with Follow current format on by default
+• Creative asks for confirmation first, because the change may be irreversible or wrong
+• Section Imagine cannot do Imagine's job: it cannot change the whole song or other sections, and it stops with an alert
+• Section Imagine Creative sends the whole song for style, and writes back only the current section
+• Whole-song Creative fills a blank title, language, tempo, key, and meter. The title goes in the title field, not Ideas. Fields with no need to change may be omitted
+• Settings has a slider for interface font size. Only the text size changes; windows and column widths stay put
+• The main window fills the screen when the app opens
 """,
             bodyMarkdownJA: """
 【新機能】
-• 設定のダウンロード欄で GitHub の更新を確認できる。起動時は黙って自検し、新しい版があるときだけ説明ダイアログと手動ダウンロード
-• 歌詞プレビューのセクション下の小字をメモ / 訳文で切り替え（既定はメモ、空なら非表示）
-• 削除確認に訳文の件数を表示
-"""
+• 歌詞のセクションを右に滑らせると、左に青い Imagine ボタンが出て、そのセクションだけを扱います。書き出しボタンの左にも同じ Imagine があり、曲全体を扱えます
+• 開くと翻訳か創作を選べます。翻訳は訳す言語を選び、次回はその言語が選ばれ、追加の要望も書けます。創作は曲にある内容から、指定したセクションか曲全体を書き直します
+• 曲全体の Imagine では、言語、テンポ、調、拍子もモデルに任せられます
+• モデル名は空でも構いません。設定で接続を試し、翻訳と創作がより正確になるよう、パラメータの大きいモデルを勧めています
+• 曲全体の創作はセクションごとに分けて書き戻し、一つの歌詞欄にまとめません。「現在の形式に合わせる」は既定でオンです
+• 創作の前に確認します。取り消せなかったり誤ったりすることがあるためです
+• 段落 Imagine は Imagine の仕事はできません。曲全体や他のセクションは変えられず、止めて知らせます
+• 段落 Imagine の創作は曲全体を文風の参考として渡し、今のセクションだけを書き戻します
+• 曲全体の創作は空の曲名、言語、テンポ、調、拍子を補います。曲名はタイトル欄へ書き、アイデアには書きません。変える必要がない項目は省略できます
+• 設定にフォントサイズのスライダーを追加。変わるのは文字の大きさだけで、ウィンドウと欄の幅はそのままです
+• 起動時、メインウィンドウは画面いっぱいに開きます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 가사 섹션을 오른쪽으로 밀면 왼쪽에 파란 Imagine 버튼이 나오고, 그 섹션만 바꿉니다. 내보내기 버튼 왼쪽에도 같은 Imagine이 있어 곡 전체를 다룰 수 있습니다
+• 열면 번역 또는 창작을 고릅니다. 번역은 목표 언어를 고르고 다음에도 그 언어를 기억하며, 추가 요청을 쓸 수 있습니다. 창작은 곡에 있는 내용으로 지정한 섹션이나 곡 전체를 다시 씁니다
+• 곡 전체 Imagine은 언어, 빠르기, 조성, 박자도 모델이 채우게 할 수 있습니다
+• 모델 이름은 비워 둘 수 있습니다. 설정에서 연결을 시험할 수 있고, 번역과 창작이 더 정확하도록 매개변수가 큰 모델을 권합니다
+• 곡 전체 창작은 섹션을 나눠 순서대로 넣고, 한 칸에 몰아 넣지 않습니다. 「현재 형식을 따름」은 기본으로 켜져 있습니다
+• 창작 전에 한 번 더 확인합니다. 되돌릴 수 없거나 잘못될 수 있기 때문입니다
+• 단락 Imagine은 Imagine 일을 할 수 없습니다. 곡 전체나 다른 섹션을 바꾸지 못하며, 멈추고 알립니다
+• 단락 Imagine 창작은 문체를 맞추려고 곡 전체를 보내고, 지금 섹션만 다시 씁니다
+• 곡 전체 창작은 빈 제목, 언어, 빠르기, 조성, 박자를 채웁니다. 제목은 제목 칸에 쓰고 아이디어에는 쓰지 않습니다. 바꿀 필요가 없는 항목은 생략할 수 있습니다
+• 설정에 화면 글자 크기 슬라이더가 있습니다. 글자 크기만 바뀌고, 창과 칸 너비는 그대로입니다
+• 앱을 열면 메인 창이 화면을 채웁니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Desliza una sección de la letra a la derecha y aparece un botón azul de Imagine a la izquierda. Solo cambia esa sección. El mismo Imagine está a la izquierda de Exportar y puede cambiar la canción entera
+• Al abrirlo se elige Traducción o Creativo. La traducción pide un idioma, lo recuerda la próxima vez y admite un pedido extra. Creativo reescribe la sección elegida o la canción con lo que ya contiene
+• El Imagine de toda la canción también puede dejar que el modelo complete idioma, tempo, tonalidad y compás
+• El nombre del modelo puede quedar vacío. En Ajustes se puede probar la conexión, y se recomienda un modelo grande para traducir y escribir con más precisión
+• Lo creativo de toda la canción reparte las secciones en orden, no las vuelca en un solo recuadro, y Seguir el formato actual viene activado
+• Lo creativo pide confirmación primero, porque el cambio puede no deshacerse o salir mal
+• El Imagine de sección no puede hacer el trabajo de Imagine: no cambia la canción entera ni otras secciones, y se detiene con un aviso
+• Lo creativo de Imagine de sección envía la canción entera para el estilo y solo escribe de nuevo la sección actual
+• Lo creativo de toda la canción completa un título, idioma, tempo, tonalidad y compás en blanco. El título va al campo de título, no a Ideas. Los campos que no hace falta cambiar se pueden omitir
+• Ajustes incluye un control deslizante para el tamaño de letra. Solo cambia el texto; las ventanas y el ancho de las columnas no se mueven
+• Al abrir la app, la ventana principal llena la pantalla
+""",
+        ),
+        Entry(
+            version: "v1.8.1",
+            date: "2026-09-24",
+            isLatest: false,
+            bodyMarkdown: """
+【新增】
+• 按住 Command 点任意段落的笔记、译文或折叠，会对整首歌做同样的打开或收起，已经是那个状态的段落不动
+• 界面语言增加韩语、西班牙语
+• 编辑区右上角的导出按钮改成导出的样子，并留出以后再加按钮的位置
+【改动】
+• 设置改到右边栏，和灵感设定、歌词预览切换。打开设置时右边栏宽度固定成设置页的宽度，回到灵感设定或歌词预览后恢复。设置从下往上进入
+• 做词和做曲的提示改为：技能需要交给能做文件处理的模型
+• 设置页去掉关闭按钮。界面语言改成列表，并增加跟随系统。下载相关收进二级菜单。可以保存大模型 API Key
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 按住 Command 點任意段落的筆記、譯文或折疊，會對整首歌做同樣的打開或收起，已經是那個狀態的段落不動
+• 介面語言增加韓語、西班牙語
+• 編輯區右上角的匯出按鈕改成匯出的樣子，並留出以後再加按鈕的位置
+【改動】
+• 設定改到右邊欄，和靈感設定、歌詞預覽切換。打開設定時右邊欄寬度固定成設定頁的寬度，回到靈感設定或歌詞預覽後恢復。設定從下往上進入
+• 做詞和做曲的提示改為：技能需要交給能做檔案處理的模型
+• 設定頁去掉關閉按鈕。介面語言改成列表，並增加跟隨系統。下載相關收進二級選單。可以儲存大型模型 API Key
+""",
+            bodyMarkdownEN: """
+【New】
+• Hold Command and click notes, translation, or collapse on any section to open or close that on the whole song. Sections already in that state stay as they are
+• Korean and Spanish were added
+• The export button at the top right of the editor looks like export, with room for later buttons
+【Changed】
+• Settings opens in the right column and switches with Ideas and Lyrics Preview. Its width is fixed to the settings page, then returns afterward. Settings enters from the bottom
+• The lyric and music forge hint now says the skill must be handed to a model that can handle files
+• The settings close button is gone. Interface language is a list and adds Follow System. Download items sit in a second-level menu. An API key can be saved
+""",
+            bodyMarkdownJA: """
+【新機能】
+• Command を押しながら任意のセクションのメモ、訳文、折りたたみを押すと、曲全体が同じ開閉になります。すでにその状態のセクションはそのままです
+• 韓国語とスペイン語を追加しました
+• 編集画面右上の書き出しボタンを書き出しの形にし、後からボタンを足す余白を残しました
+【変更】
+• 設定は右カラムで開き、インスピレーションと歌詞プレビューと切り替えます。開いている間、幅は設定ページの幅になり、戻すと元に戻ります。設定は下から入ります
+• 作詞・作曲の注意は、ファイルを扱えるモデルにスキルを渡す、に変わりました
+• 設定の閉じるボタンをなくしました。言語はリストになり、システムに合わせるを追加しました。ダウンロードは二次メニューです。API キーを保存できます
+""",
+            bodyMarkdownKO: """
+【추가】
+• Command를 누른 채 아무 섹션의 메모, 번역, 접기를 누르면 곡 전체가 같이 열리거나 닫힙니다. 이미 그 상태인 섹션은 그대로입니다
+• 한국어와 스페인어를 추가했습니다
+• 편집 화면 오른쪽 위 내보내기 버튼을 내보내기 모양으로 바꾸고, 나중에 버튼을 둘 자리를 남겼습니다
+【변경】
+• 설정은 오른쪽 열에서 열리고 아이디어, 가사 미리보기와 전환됩니다. 열어 둔 동안 너비는 설정 페이지 너비로 고정되고, 돌아가면 원래대로입니다. 설정은 아래에서 들어옵니다
+• 작사·작곡 안내는 파일을 다룰 수 있는 모델에 스킬을 넘기라고 바뀌었습니다
+• 설정의 닫기 버튼을 없앴습니다. 언어는 목록에서 고르며 시스템을 따름을 추가했습니다. 다운로드는 2단 메뉴입니다. API 키를 저장할 수 있습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Mantén Command y pulsa notas, traducción o plegado de cualquier sección para abrir o cerrar eso en toda la canción. Lo que ya está así no cambia
+• Se añadieron coreano y español
+• El botón de exportar arriba a la derecha tiene forma de exportación y deja sitio para más botones
+【Cambios】
+• Ajustes se abre en la columna derecha y se alterna con Ideas y la vista previa. Su anchura queda fija en la de la página de ajustes y luego vuelve. Ajustes entra desde abajo
+• El aviso de la forja de letra y música dice que la habilidad debe ir a un modelo que pueda manejar archivos
+• Se quitó el botón de cerrar. El idioma es una lista e incluye Seguir el sistema. La descarga está en un menú de segundo nivel. Se puede guardar una clave de API
+""",
+        ),
+        Entry(
+            version: "v1.8.0",
+            date: "2026-09-19",
+            isLatest: false,
+            bodyMarkdown: """
+【新增】
+• 设置里的下载可以检查有没有新版本。启动时会安静地查一次，只有发现新版本才提醒，也可以手动去下载
+• 歌词预览里，段落下面的小字可以在笔记和译文之间换。默认是笔记，没有内容就不显示
+• 删除歌曲前的确认里，会写出有多少条译文
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 設定裡的下載可以檢查有沒有新版本。啟動時會安靜地查一次，只有發現新版本才提醒，也可以手動去下載
+• 歌詞預覽裡，段落下面的小字可以在筆記和譯文之間換。預設是筆記，沒有內容就不顯示
+• 刪除歌曲前的確認裡，會寫出有多少條譯文
+""",
+            bodyMarkdownEN: """
+【New】
+• Download in Settings can look for a new version. Launch checks quietly and only alerts when one exists, and you can download it yourself
+• In lyrics preview, the small line under a section can switch between notes and translation. Notes are the default, and an empty line stays hidden
+• The delete confirmation now says how many translations the song has
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 設定のダウンロードで新しい版を確認できます。起動時は静かに確認し、新しい版があるときだけ知らせ、自分でダウンロードもできます
+• 歌詞プレビューでは、セクション下の小字をメモと訳文で切り替えられます。既定はメモで、空なら表示しません
+• 曲を削除する前の確認に、訳文が何件あるか出ます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 설정의 다운로드에서 새 버전을 확인할 수 있습니다. 시작할 때는 조용히 확인하고, 새 버전이 있을 때만 알리며 직접 받을 수도 있습니다
+• 가사 미리보기에서 섹션 아래 작은 글자를 메모와 번역 사이에서 바꿀 수 있습니다. 기본은 메모이고, 비어 있으면 보이지 않습니다
+• 곡을 지우기 전 확인에 번역이 몇 개인지 나옵니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• La descarga en Ajustes puede buscar una versión nueva. Al iniciar lo hace en silencio y solo avisa si hay una, y también se puede descargar a mano
+• En la vista previa, el texto pequeño bajo cada sección puede alternar entre notas y traducción. Las notas son lo habitual y, si está vacío, no se muestra
+• La confirmación de borrado indica cuántas traducciones tiene la canción
+""",
         ),
         Entry(
             version: "v1.7.10 Extra",
-            date: "2026-09-17",
+            date: "2026-06-26",
             isLatest: false,
             bodyMarkdown: """
-## 新增
-
-- 写词段落头在「笔记」左侧增加「译文」按钮：交互与伸缩动画与笔记相同；译文 / 笔记不能同时展开，互相切换也会做收起+展开动画
-- `.smelody.txt` 用稳定英文块 `Translation:` 导入导出段落译文（空译文省略，不混入歌词正文）；词炼成可写出该块，曲炼成读取但不把它当唱词
-
-## 修复
-
-- 段落拖放按落点相对目标段**垂直中线**决定插入位置：上半插入到该段之前，下半插入到该段之后（不再一律 `targetIndex + 1`）
-- 拖动时光标靠近列表顶部会真正启动自动向上滚动（此前 `DragAutoScroller` 已分配但从未 `start()`）；NSEvent monitor 在 tracking loop 内同步处理，进入顶部立即滚一格，timer 加到 `RunLoop.common` / `eventTracking`（不再 `Task` 跳出、也不再用 default-mode `scheduledTimer`）
-- 段落拖动改用专用 payload（`com.simplemelody.section-id`）；歌词 NSTextView 拒绝把段落 UUID 当文本插入。不再把「代码嵌入歌词」当作可接受缺陷
-- 空拖放 / 拖到自身为 no-op
-
-包内 `CFBundleShortVersionString` / `MARKETING_VERSION` 仍为 `1.7.10`（系统版本键不接受 Extra 后缀）；设置「关于」与本日志的用户可见版本为 **v1.7.10 Extra**。
+【新增】
+• 段落里增加了译文，和笔记不能同时展开。歌词文件可以一并带上译文
+【修复】
+• 拖动段落时，放在目标段的上半就插到它前面，放在下半就插到它后面
+• 拖到列表靠近顶部时，列表现在会真正往上滚动
+• 拖动段落时，不会再把一段编号写进歌词里
 """,
             bodyMarkdownZHT: """
-## 新增
-
-- 寫詞段落頭在「筆記」左側增加「譯文」按鈕：互動與伸縮動畫與筆記相同；譯文 / 筆記不能同時展開，互相切換也會做收起+展開動畫
-- `.smelody.txt` 用穩定英文塊 `Translation:` 匯入匯出段落譯文（空譯文省略，不混入歌詞正文）；詞煉成可寫出該塊，曲煉成讀取但不把它當唱詞
-
-## 修復
-
-- 段落拖放按落點相對目標段**垂直中線**決定插入位置：上半插入到該段之前，下半插入到該段之後（不再一律 `targetIndex + 1`）
-- 拖動時游標靠近列表頂部會真正啟動自動向上捲動（此前 `DragAutoScroller` 已分配但從未 `start()`）；NSEvent monitor 在 tracking loop 內同步處理，進入頂部立即滾一格，timer 加到 `RunLoop.common` / `eventTracking`（不再 `Task` 跳出、也不再用 default-mode `scheduledTimer`）
-- 段落拖動改用專用 payload（`com.simplemelody.section-id`）；歌詞 NSTextView 拒絕把段落 UUID 當文字插入。不再把「程式碼嵌入歌詞」當作可接受缺陷
-- 空拖放 / 拖到自身為 no-op
-
-包內 `CFBundleShortVersionString` / `MARKETING_VERSION` 仍為 `1.7.10`（系統版本鍵不接受 Extra 後綴）；設定「關於」與本日誌的用戶可見版本為 **v1.7.10 Extra**。
+【新增】
+• 段落裡增加了譯文，和筆記不能同時展開。歌詞檔可以一併帶上譯文
+【修復】
+• 拖動段落時，放在目標段的上半就插到它前面，放在下半就插到它後面
+• 拖到列表靠近頂部時，列表現在會真正往上捲動
+• 拖動段落時，不會再把一段編號寫進歌詞裡
 """,
             bodyMarkdownEN: """
-## New
-
-- Section header: a Translation control sits immediately left of Notes, with the same press and stretch animation. Translation and Notes cannot both be open; switching still animates collapse+expand
-- `.smelody.txt` round-trips a stable `Translation:` block per section (empty omitted; not mixed into the lyric body). Lyric-create may emit it; music-create reads it and does not treat it as sung lyrics
-
-## Fixed
-
-- Section drop insert uses the drop `location` versus the target's vertical midpoint: top half inserts **before**, bottom half inserts **after** (no longer always `targetIndex + 1`)
-- Drag-near-top auto-scroll is actually started during section drag (`DragAutoScroller.start()` was allocated but never invoked). The NSEvent monitor runs synchronously inside the tracking loop, scrolls immediately on the dragged event, and the timer is added to `RunLoop.common` / `eventTracking` (no `Task` hop, no default-mode-only `scheduledTimer`)
-- Section drag uses a dedicated payload (`com.simplemelody.section-id`); the lyrics `NSTextView` rejects section UUIDs as text. The "code embedded into lyrics" defect is no longer accepted
-- Empty drops and self-drops are no-ops
-
-`CFBundleShortVersionString` / `MARKETING_VERSION` stay `1.7.10` (those keys do not take an Extra suffix). The Settings about row and this changelog identify the build as **v1.7.10 Extra**.
+【New】
+• Sections gained a translation next to notes. They cannot both be open. A lyric file can carry the translation
+【Fixed】
+• Dropping a section on the upper half inserts it before that section, and the lower half inserts it after
+• Dragging near the top of the list now really scrolls upward
+• Dragging a section no longer pastes a stray identifier into the lyrics
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- 歌詞セクションヘッダーの「メモ」の左に「訳文」ボタンを追加。操作と伸縮アニメはメモと同じ。訳文とメモは同時に開けず、切り替え時も閉じる+開くアニメになる
-- `.smelody.txt` は安定した英語ブロック `Translation:` でセクション訳文を入出力（空なら省略、歌詞本文に混ぜない）。詞煉成は出力可、曲煉成は読むが歌歌詞としては扱わない
-
-## 修正
-
-- セクションのドロップ挿入は、ドロップ位置とターゲットの垂直中線で判定：上半分ならその前、下半分ならその後（もう常に `targetIndex + 1` ではない）
-- ドラッグ中にカーソルがリスト上部へ近づくと、自動上スクロールが実際に開始される（以前は `DragAutoScroller` を確保したまま `start()` していなかった）。NSEvent モニタは tracking loop 内で同期処理し、上端に入ったイベントで即スクロール、timer は `RunLoop.common` / `eventTracking` に追加（`Task` で抜けない、default-mode の `scheduledTimer` は使わない）
-- セクションドラッグは専用 payload（`com.simplemelody.section-id`）を使用。歌詞 `NSTextView` はセクション UUID をテキストとして挿入しない。「コードが歌詞に埋め込まれる」欠陥を仕様として残さない
-- 空のドロップ / 自身へのドロップは no-op
-
-`CFBundleShortVersionString` / `MARKETING_VERSION` は `1.7.10` のまま（Extra 接尾辞を付けられない）。設定の「About」と本ログ上の表示バージョンは **v1.7.10 Extra**。
-"""
+【新機能】
+• セクションに訳文が増え、メモとは同時に開けません。歌詞ファイルに訳文も入れられます
+【修正】
+• 段落を置くとき、相手の上半分ならその前、下半分ならその後に入ります
+• 一覧の上の方まで拖ると、本当に上へスクロールします
+• 段落を拖っても、番号が歌詞に紛れ込まなくなりました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 섹션에 번역이 생겼고 메모와 동시에 열 수 없습니다. 가사 파일에 번역도 넣을 수 있습니다
+【수정】
+• 섹션을 놓을 때 대상의 위쪽이면 앞에, 아래쪽이면 뒤에 들어갑니다
+• 목록 위쪽까지 끌면 이제 정말로 위로 스크롤됩니다
+• 섹션을 끌어도 번호가 가사 안에 들어가지 않습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Las secciones tienen traducción junto a las notas. No se abren a la vez. El archivo de la letra puede llevar la traducción
+【Corrección】
+• Soltar una sección en la mitad superior la inserta antes, y en la inferior, después
+• Arrastrar cerca de la parte superior de la lista ahora sí desplaza hacia arriba
+• Arrastrar una sección ya no mete un identificador suelto dentro de la letra
+""",
         ),
         Entry(
             version: "v1.7.10",
             date: "2026-06-26",
             isLatest: false,
-            bodyMarkdown: "纪念Minecraft v1.7.10发布12周年。",
-            bodyMarkdownZHT: "紀念Minecraft v1.7.10發布12週年。",
-            bodyMarkdownEN: "In memory of the 12th anniversary of Minecraft v1.7.10.",
-            bodyMarkdownJA: "Minecraft v1.7.10リリース12周年を記念。"
+            bodyMarkdown: """
+【改动】
+• 纪念 Minecraft v1.7.10 发布十二周年
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 紀念 Minecraft v1.7.10 發布十二週年
+""",
+            bodyMarkdownEN: """
+【Changed】
+• In memory of the twelfth anniversary of Minecraft v1.7.10
+""",
+            bodyMarkdownJA: """
+【変更】
+• Minecraft v1.7.10 公開十二周年を記念します
+""",
+            bodyMarkdownKO: """
+【변경】
+• Minecraft v1.7.10 출시 12주년을 기념합니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• En memoria del duodécimo aniversario de Minecraft v1.7.10
+""",
         ),
         Entry(
             version: "v1.7.9 GT5",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "新增文件夹右键上移/下移排序，修复多语言适配",
-            bodyMarkdownZHT: "新增資料夾右鍵上移/下移排序，修復多語言適配",
-            bodyMarkdownEN: "Added folder right-click move up/down sorting, fixed localization",
-            bodyMarkdownJA: "フォルダの右クリックで上下移動並べ替えを追加、ローカライズを修正"
+            bodyMarkdown: """
+【新增】
+• 文件夹可以用右键向上或向下调整顺序，并修正了多语言显示
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 資料夾可以用右鍵向上或向下調整順序，並修正了多語言顯示
+""",
+            bodyMarkdownEN: """
+【New】
+• Folders can move up or down from the right-click menu, and several languages display more correctly
+""",
+            bodyMarkdownJA: """
+【新機能】
+• フォルダを右クリックで上下に並べ替えられ、多言語の表示も直しました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 폴더를 오른쪽 클릭으로 위아래로 옮길 수 있고, 여러 언어 표시도 고쳤습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Las carpetas se pueden subir o bajar con el clic derecho, y se corrigió la presentación en varios idiomas
+""",
         ),
         Entry(
             version: "v1.7.9 GT4",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "新增曲目库右键上移/下移排序、移到其他文件夹功能",
-            bodyMarkdownZHT: "新增曲目庫右鍵上移/下移排序、移到其他資料夾功能",
-            bodyMarkdownEN: "Added right-click move up/down sorting and move to other folder in library",
-            bodyMarkdownJA: "ライブラリの右クリックで上下移動並べ替え、別のフォルダに移動機能を追加"
+            bodyMarkdown: """
+【新增】
+• 曲目列表可以用右键上移、下移，也可以移到别的文件夹
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 曲目列表可以用右鍵上移、下移，也可以移到別的資料夾
+""",
+            bodyMarkdownEN: """
+【New】
+• Songs in the list can move up, down, or into another folder from the right-click menu
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 曲一覧を右クリックで上下に動かしたり、別のフォルダへ移したりできます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 곡 목록에서 오른쪽 클릭으로 위아래 이동과 다른 폴더로 옮기기가 됩니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• En la lista se puede subir, bajar o mover una canción a otra carpeta con el clic derecho
+""",
         ),
         Entry(
             version: "v1.7.9 GT3",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "修复文本编辑栏交互、左滑删除样式、动画问题",
-            bodyMarkdownZHT: "修復文字編輯欄互動、左滑刪除樣式、動畫問題",
-            bodyMarkdownEN: "Fixed text editor interaction, swipe-delete style, animation issues",
-            bodyMarkdownJA: "テキストエディタの操作、スワイプ削除のスタイル、アニメーションの問題を修正"
+            bodyMarkdown: """
+【修复】
+• 修正了歌词文字编辑、向左滑删除的样子，以及一些动画问题
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正了歌詞文字編輯、向左滑刪除的樣子，以及一些動畫問題
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed lyric text editing, the look of swipe-to-delete, and some animation problems
+""",
+            bodyMarkdownJA: """
+【修正】
+• 歌詞の文字編集、左に滑らせて消す見た目、いくつかのアニメーションを直しました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 가사 편집, 왼쪽으로 밀어 지우는 모양, 일부 애니메이션을 고쳤습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió la edición del texto, el aspecto de borrar deslizando y algunos problemas de animación
+""",
         ),
         Entry(
             version: "v1.7.9 GT2",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "修改了一堆 Bug",
-            bodyMarkdownZHT: "修改了一堆 Bug",
-            bodyMarkdownEN: "Fixed a bunch of bugs",
-            bodyMarkdownJA: "いくつかのバグを修正"
+            bodyMarkdown: """
+【修复】
+• 修正了一批小问题
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正了一批小問題
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed a batch of small problems
+""",
+            bodyMarkdownJA: """
+【修正】
+• 細かい不具合をまとめて直しました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 작은 문제 여러 개를 고쳤습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió un puñado de problemas pequeños
+""",
         ),
         Entry(
             version: "v1.7.9 GT",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "合并 BugStable 与 Test：恢复段落拖动开关 + 笔记/折叠动画",
-            bodyMarkdownZHT: "合併 BugStable 與 Test：恢復段落拖動開關 + 筆記/折疊動畫",
-            bodyMarkdownEN: "Merged BugStable and Test: restored section drag toggle + notes/fold animations",
-            bodyMarkdownJA: "BugStable と Test を統合：セクションドラッグスイッチ + ノート/折りたたみアニメーションを復元"
+            bodyMarkdown: """
+【改动】
+• 把此前的稳定修正合并进来，段落拖动开关和笔记、折叠的动画都回来了
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 把此前的穩定修正合併進來，段落拖動開關和筆記、折疊的動畫都回來了
+""",
+            bodyMarkdownEN: """
+【Changed】
+• Earlier stable fixes were merged back in. The section-drag switch and the notes and collapse animations returned
+""",
+            bodyMarkdownJA: """
+【変更】
+• それまでの安定版の修正をまとめ、セクション拖動のスイッチとメモ、折りたたみのアニメーションが戻りました
+""",
+            bodyMarkdownKO: """
+【변경】
+• 이전의 안정적인 수정을 합쳤습니다. 섹션 드래그 스위치와 메모, 접기 애니메이션이 돌아왔습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Se unieron las correcciones estables anteriores. Volvieron el interruptor de arrastrar secciones y las animaciones de notas y plegado
+""",
         ),
         Entry(
             version: "v1.7.9 Test",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "恢复笔记/折叠动画；段落拖动改回默认开启（去掉开关）",
-            bodyMarkdownZHT: "恢復筆記/折疊動畫；段落拖動改回預設開啟（去掉開關）",
-            bodyMarkdownEN: "Restored notes/fold animations; section drag on by default (toggle removed)",
-            bodyMarkdownJA: "ノート/折りたたみアニメーションを復元；セクションドラッグをデフォルト ON（スイッチ削除）"
+            bodyMarkdown: """
+【改动】
+• 笔记和折叠的动画恢复了。段落拖动暂时改回默认开启，开关先拿掉
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 筆記和折疊的動畫恢復了。段落拖動暫時改回預設開啟，開關先拿掉
+""",
+            bodyMarkdownEN: """
+【Changed】
+• Notes and collapse animate again. Section dragging was turned on by default for this try, and the switch was removed
+""",
+            bodyMarkdownJA: """
+【変更】
+• メモと折りたたみのアニメーションが戻りました。この試行ではセクション拖動を既定でオンにし、スイッチは外しました
+""",
+            bodyMarkdownKO: """
+【변경】
+• 메모와 접기 애니메이션이 돌아왔습니다. 이번 시험에서는 섹션 드래그를 기본으로 켜고 스위치는 뺐습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Volvieron las animaciones de notas y plegado. En esta prueba, arrastrar secciones quedó activado y se quitó el interruptor
+""",
         ),
         Entry(
             version: "v1.7.9 BugStable",
             date: "2026-06-25",
             isLatest: false,
-            bodyMarkdown: "修复笔记/元信息面板展开动画、滚轮穿透、切歌光标、文字居中点击问题",
-            bodyMarkdownZHT: "修復筆記/元資訊面板展開動畫、滾輪穿透、切歌游標、文字置中點擊問題",
-            bodyMarkdownEN: "Fixed notes/metadata panel animation, scroll-wheel passthrough, song-switch cursor, text-centering click issue",
-            bodyMarkdownJA: "ノート/メタ情報パネルの展開アニメ、スクロールホイール透過、切替カーソル、テキスト中央配置クリック問題を修正"
+            bodyMarkdown: """
+【修复】
+• 修正了笔记和歌曲信息展开时的动画、滚轮被挡住、换歌后光标还在，以及文字点不中的问题
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正了筆記和歌曲資訊展開時的動畫、滾輪被擋住、換歌後游標還在，以及文字點不中的問題
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed the animation when notes and song details open, the scroll wheel getting stuck, the cursor lingering after a song change, and clicks missing the text
+""",
+            bodyMarkdownJA: """
+【修正】
+• メモと曲情報を開くアニメーション、ホイールが通らないこと、曲を替えてもカーソルが残ること、文字が押しにくいことを直しました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 메모와 곡 정보를 펼치는 애니메이션, 스크롤 휠이 막히던 것, 곡을 바꿔도 커서가 남던 것, 글자를 잘 누르지 못하던 것을 고쳤습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió la animación al abrir notas y datos de la canción, la rueda que no pasaba, el cursor que seguía al cambiar de canción y los clics que no daban en el texto
+""",
         ),
         Entry(
             version: "v1.7.9 Delta",
             date: "2026-06-24",
             isLatest: false,
             bodyMarkdown: """
-## 修复
-
-- 切歌动画统一从右往左，规避快速切换下的反向动画
-- 歌词编辑栏高度自适应内容（intrinsicContentSize + didChangeText 重算）
-- 切歌不放光标；只有用户主动行为才聚焦
-- 文件夹 / 回收站单击 toggle 展开（不被外层 selection 误选）
-- 灵感 / 歌词预览切换按按钮位置决定方向；关闭时详情栏宽度收缩到 0
-- 灵感词条最小高度可调（1 行 / 2 行）
+【修复】
+• 换歌时的动画统一从右往左，快速连切也不会反方向跳
+• 歌词编辑区的高度会跟着内容变
+• 换歌时不再自动把光标放进歌词，只有你自己点进去才会开始输入
+• 文件夹和回收站点一下就能展开或收起
+• 灵感和歌词预览按按钮所在的左右方向滑入滑出。关掉右侧时，那一栏会收起来
+• 灵感条目的最小高度可以选一行或两行
 """,
             bodyMarkdownZHT: """
-## 修復
-
-- 切歌動畫統一從右往左，規避快速切換下的反向動畫
-- 歌詞編輯欄高度自適應內容（intrinsicContentSize + didChangeText 重算）
-- 切歌不放光標；只有用戶主動行為才聚焦
-- 文件夾 / 回收站單擊 toggle 展開（不被外層 selection 誤選）
-- 靈感 / 歌詞預覽切換按按鈕位置決定方向；關閉時詳情欄寬度收縮到 0
-- 靈感詞條最小高度可調（1 行 / 2 行）
+【修復】
+• 換歌時的動畫統一從右往左，快速連切也不會反方向跳
+• 歌詞編輯區的高度會跟著內容變
+• 換歌時不再自動把游標放進歌詞，只有你自己點進去才會開始輸入
+• 資料夾和回收桶點一下就能展開或收起
+• 靈感和歌詞預覽按按鈕所在的左右方向滑入滑出。關掉右側時，那一欄會收起來
+• 靈感條目的最小高度可以選一行或兩行
 """,
             bodyMarkdownEN: """
-## Fixed
-
-- Song switching animation unified to right-to-left to avoid reverse bugs during rapid switching
-- Lyrics editor height auto-sizes with content (intrinsicContentSize + didChangeText)
-- Switching songs no longer places the text cursor; only user-initiated actions trigger focus
-- Folder / trash single click toggles expansion without leaking to the outer List selection
-- Ideas / Preview panel switch follows the button positions; off collapses the detail column to width 0
-- Ideas note text editor minimum height is now configurable (1 / 2 lines)
+【Fixed】
+• Changing songs always slides from right to left, even if you switch quickly
+• The lyric editor grows and shrinks with the text
+• Changing songs no longer drops the cursor into the lyrics. Typing starts only when you click there
+• A folder or the trash opens and closes with one click
+• Ideas and lyrics preview slide in from the side of their buttons. Closing the right side collapses that column
+• An idea note can start at one line or two
 """,
             bodyMarkdownJA: """
-## 修正
-
-- 楽曲切替アニメーションを右から左へ統一、高速切替時の逆方向バグを回避
-- 歌詞エディタの高さを内容に合わせて自動調整（intrinsicContentSize + didChangeText）
-- 楽曲切替時はカーソルを表示しない。ユーザー操作時のみフォーカス
-- フォルダ / ゴミ箱のシングルクリックで展開。外側 List selection に漏れない
-- アイデア / 歌詞プレビューの切替はボタン位置に従う。off 時は詳細カラム幅を 0 に折りたたむ
-- アイデアのノートテキストボックスの最小高さを調整可能に（1 行 / 2 行）
-"""
+【修正】
+• 曲を替えるアニメーションは右から左に統一し、素早く替えても逆向きになりません
+• 歌詞の編集欄の高さは内容に合わせて変わります
+• 曲を替えても、勝手に歌詞へカーソルを置きません。自分で押したときだけ入力できます
+• フォルダとゴミ箱は一回のクリックで開閉します
+• アイデアと歌詞プレビューは、ボタンのある側から出入りします。右を閉じるとその列はしまいます
+• アイデアの最小の高さは一行か二行から選べます
+""",
+            bodyMarkdownKO: """
+【수정】
+• 곡을 바꿀 때의 움직임은 오른쪽에서 왼쪽으로 통일되어, 빨리 바꿔도 반대로 튀지 않습니다
+• 가사 편집칸의 높이가 내용에 맞춰 변합니다
+• 곡을 바꿔도 가사를 마음대로 입력 상태로 두지 않습니다. 직접 눌렀을 때만 입력합니다
+• 폴더와 휴지통은 한 번 누르면 펼치거나 접힙니다
+• 아이디어와 가사 미리보기는 버튼이 있는 쪽에서 들어오고 나갑니다. 오른쪽을 닫으면 그 열이 접힙니다
+• 아이디어의 최소 높이를 한 줄 또는 두 줄로 고를 수 있습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Al cambiar de canción el movimiento va siempre de derecha a izquierda, también si se cambia muy rápido
+• El alto del editor de la letra sigue al texto
+• Cambiar de canción ya no deja el cursor dentro de la letra. Solo se escribe cuando se pulsa ahí
+• Una carpeta o la papelera se abre y se cierra con un clic
+• Ideas y la vista previa entran desde el lado de su botón. Al cerrar la derecha, esa columna se guarda
+• La altura mínima de una idea puede ser de una o dos líneas
+""",
         ),
         Entry(
             version: "v1.7.9 Gamma",
             date: "2026-06-24",
             isLatest: false,
             bodyMarkdown: """
-## 新增
-
-- 切换歌词的动画方向感知：切到列表下方（更旧的歌）从右往左滑；切到列表上方（更新的歌）从左往右滑，符合直觉
-- 灵感与设定 / 歌词预览两个右栏之间切换加入左右滑动动画（spring）
-
-## 修复
-
-- 修复歌词编辑栏的光标常驻 bug：现在点击 TextEditor 之外的空白区域会自动让 window resignFirstResponder，关掉光标。修好之后切换曲目库时歌词栏颜色显示恢复正常（之前是 NSTextView 一直 firstResponder 导致 SwiftUI 视图状态未及时同步）
+【新增】
+• 换到列表里更下面的歌时从右往左滑，换到更上面的歌时从左往右滑
+• 右侧的灵感和歌词预览互相切换时，会左右滑一下
+【修复】
+• 歌词编辑区的光标不会再一直停着。点到编辑区外面，光标就会消失，换歌后颜色也正常
 """,
             bodyMarkdownZHT: """
-## 新增
-
-- 切換歌詞的動畫方向感知：切到列表下方（更舊的歌）從右往左滑；切到列表上方（更新的歌）從左往右滑，符合直覺
-- 靈感與設定 / 歌詞預覽兩個右欄之間切換加入左右滑動動畫（spring）
-
-## 修復
-
-- 修復歌詞編輯欄的光標常駐 bug：現在點擊 TextEditor 之外的空白區域會自動讓 window resignFirstResponder，關掉光標。修好之後切換曲目庫時歌詞欄顏色顯示恢復正常（之前是 NSTextView 一直 firstResponder 導致 SwiftUI 視圖狀態未及時同步）
+【新增】
+• 換到列表裡更下面的歌時從右往左滑，換到更上面的歌時從左往右滑
+• 右側的靈感和歌詞預覽互相切換時，會左右滑一下
+【修復】
+• 歌詞編輯區的游標不會再一直停著。點到編輯區外面，游標就會消失，換歌後顏色也正常
 """,
             bodyMarkdownEN: """
-## New
-
-- Direction-aware song switching animation: switching to a song lower in the list (older) slides right-to-left; switching to a song higher in the list (newer) slides left-to-right — matches user intuition
-- Added a left/right slide animation when switching between the Ideas & Settings and Lyrics Preview right panels (spring)
-
-## Fixed
-
-- Fixed the persistent text-cursor bug in the lyrics editor: clicking anywhere outside the TextEditor now automatically makes the window resignFirstResponder, turning off the cursor. This also fixes the color rendering glitch that happened when switching songs in the library (previously NSTextView stayed as firstResponder and SwiftUI view state didn't sync in time)
+【New】
+• Moving to a song lower in the list slides from right to left. Moving to a higher one slides from left to right
+• Switching the right side between ideas and lyrics preview slides sideways
+【Fixed】
+• The cursor no longer stays stuck in the lyric editor. Click outside and it goes away, and the color is right after a song change
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- 楽曲切替のアニメーション方向を感知：リスト下方（より古い楽曲）への切替は右から左へスライド、リスト上方（より新しい楽曲）への切替は左から右へスライド、直感的な操作感に
-- アイデア＆設定 / 歌詞プレビューの 2 つの右パネル間の切替に左右スライドアニメーションを追加（spring）
-
-## 修正
-
-- 歌詞エディタのカーソル常駐バグを修正：TextEditor 以外の余白をクリックすると window が resignFirstResponder し、カーソルが消えるようになりました。これにより、ライブラリの楽曲切替時に歌詞パネルの色が正常表示されるようになりました（以前は NSTextView がずっと firstResponder のままで、SwiftUI のビュー状態が同期されていなかった）
-"""
+【新機能】
+• 一覧で下の曲へ移ると右から左、上の曲へ移ると左から右に滑ります
+• 右側のアイデアと歌詞プレビューを入れ替えるとき、左右に滑ります
+【修正】
+• 歌詞の編集欄にカーソルが居座らなくなりました。外を押すと消え、曲を替えたあとの色も正常です
+""",
+            bodyMarkdownKO: """
+【추가】
+• 목록에서 더 아래 곡으로 가면 오른쪽에서 왼쪽, 더 위 곡으로 가면 왼쪽에서 오른쪽으로 미끄러집니다
+• 오른쪽의 아이디어와 가사 미리보기를 바꿀 때 좌우로 미끄러집니다
+【수정】
+• 가사 편집칸에 커서가 계속 남지 않습니다. 밖을 누르면 사라지고, 곡을 바꾼 뒤의 색도 정상입니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Ir a una canción más abajo se desliza de derecha a izquierda, y a una más arriba, de izquierda a derecha
+• Al pasar entre ideas y la vista previa, el panel derecho se desliza a un lado
+【Corrección】
+• El cursor ya no se queda fijo en el editor. Al pulsar fuera desaparece, y el color queda bien al cambiar de canción
+""",
         ),
         Entry(
             version: "v1.7.9 Beta",
             date: "2026-06-23",
             isLatest: false,
             bodyMarkdown: """
-## 新增
-
-- 设置新增「段落拖动」开关（默认关闭）。开启后会弹窗提示存在缺陷（与歌词编辑栏 / 左滑删除冲突），确认后启用 List 系统级拖动
-- 关闭「段落拖动」时启用段落左滑删除
-
-## 改动
-
-- 段落右键菜单的「删除」按钮改用红色 Label + destructive role，更显眼
-- 歌词编辑栏的滚轮穿透到外层 ScrollView（光标在编辑栏时滚动鼠标也能滚整页）
-- 所有右键删除按钮（歌词段、注音、灵感、曲库歌曲）改用 `trash.fill` 图标 + `.tint(.red)`，垃圾桶和文字都显红色
-- 元信息展开 / 收起改用 spring 动画，最丝滑手感
-
-## 修复
-
-- 修复「段落拖动」开关的 Toggle 滑块不显示问题（与删除警告开关一致，改用 SystemSwitchToggle）
-- 修复曲目库「将歌曲移到回收站？」多语言未适配问题（key 漏了问号导致 fallback 到中文）
+【新增】
+• 设置里增加了段落拖动开关，默认关闭。打开前会提醒它和歌词编辑、左滑删除可能互相影响
+• 关闭段落拖动时，可以把段落向左滑来删除
+【改动】
+• 段落右键里的删除更显眼，用的是红色
+• 鼠标在歌词上滚动时，整页也会跟着滚
+• 各处右键里的删除都改成红色垃圾桶图标
+• 歌曲信息展开和收起更顺手
 """,
             bodyMarkdownZHT: """
-## 新增
-
-- 設定新增「段落拖動」開關（預設關閉）。開啟後會彈窗提示存在缺陷（與歌詞編輯欄 / 左滑刪除衝突），確認後啟用 List 系統級拖動
-- 關閉「段落拖動」時啟用段落左滑刪除
-
-## 改動
-
-- 段落右鍵選單的「刪除」按鈕改用紅色 Label + destructive role，更顯眼
-- 歌詞編輯欄的滾輪穿透到外層 ScrollView（游標在編輯欄時滾動滑鼠也能滾整頁）
-- 所有右鍵刪除按鈕（歌詞段、注音、靈感、曲庫歌曲）改用 `trash.fill` 圖示 + `.tint(.red)`，垃圾桶和文字都顯紅色
-- 歌詞元資訊展開 / 收合改用 spring 動畫，最絲滑手感
-
-## 修復
-
-- 修復「段落拖動」開關的 Toggle 滑塊不顯示問題（與刪除警告開關一致，改用 SystemSwitchToggle）
-- 修復曲庫「將歌曲移到回收站？」多語系未適配問題（key 漏了問號導致 fallback 到中文）
+【新增】
+• 設定裡增加了段落拖動開關，預設關閉。打開前會提醒它和歌詞編輯、左滑刪除可能互相影響
+• 關閉段落拖動時，可以把段落向左滑來刪除
+【改動】
+• 段落右鍵裡的刪除更顯眼，用的是紅色
+• 滑鼠在歌詞上滾動時，整頁也會跟著滾
+• 各處右鍵裡的刪除都改成紅色垃圾桶圖示
+• 歌曲資訊展開和收起更順手
 """,
             bodyMarkdownEN: """
-## New
-
-- New "Section Drag" toggle in Settings (off by default). Enabling shows a warning dialog about defects (conflicts with lyrics editor / swipe-to-delete). After confirmation, List system-level drag is enabled
-- When "Section Drag" is off, swipe-to-delete is enabled for sections
-
-## Changed
-
-- Section context menu "Delete" button now uses a red Label + destructive role for better visibility
-- Lyrics editor scroll wheel now passes through to the outer ScrollView (scrolling while the cursor is in the editor also scrolls the page)
-- All right-click delete buttons (sections, annotations, ideas, library songs) now use `trash.fill` icon + `.tint(.red)` for clearly red trash icon and text
-- Song metadata expand/collapse switched to spring animation for the smoothest feel
-
-## Fixed
-
-- Fixed the "Section Drag" toggle's invisible thumb (same issue as the delete-confirm toggle; now uses SystemSwitchToggle)
-- Fixed missing localization for "Move song to Trash?" library prompt (the key had a stray question mark causing fallback to Chinese)
+【New】
+• Settings gained a section-drag switch, off by default. Turning it on warns that it may conflict with editing lyrics and swiping to delete
+• With dragging off, a section can be deleted by swiping left
+【Changed】
+• Delete in a section's right-click menu is easier to see and shown in red
+• Scrolling over the lyrics also scrolls the page
+• Delete items in right-click menus use a red trash icon
+• Song details open and close more smoothly
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- 設定に「セクションドラッグ」スイッチを追加（デフォルトは無効）。有効化すると欠陥に関する警告ダイアログ（歌詞エディタ / スワイプ削除と競合）が表示され、確認後に List システムレベルのドラッグが有効になります
-- 「セクションドラッグ」を無効にしている間は、セクションのスワイプ削除が有効
-
-## 変更
-
-- セクション右クリックメニューの「削除」ボタンを赤色 Label + destructive role に変更し、より目立つように
-- 歌詞エディタのスクロールホイールを外側 ScrollView に透過（カーソルがエディタ内でもページ全体スクロール可能）
-- すべての右クリック削除ボタン（セクション、注音、アイデア、ライブラリ楽曲）を `trash.fill` アイコン + `.tint(.red)` に変更、ゴミ箱アイコンと文字がはっきり赤色に
-- 楽曲メタ情報の展開 / 折りたたみを spring アニメーションに変更、より滑らかな手触りに
-
-## 修正
-
-- 「セクションドラッグ」スイッチのトグルつまみが表示されない問題を修正（削除確認スイッチと同じく SystemSwitchToggle を使用）
-- ライブラリの「楽曲をゴミ箱へ移動しますか？」のローカライズ漏れを修正（キーに余分なクエスチョンマークがあり、中国語にフォールバックしていた）
-"""
+【新機能】
+• 設定にセクション移動のスイッチが増え、既定はオフです。オンにする前に、歌詞編集や左へ滑らせて消す操作とぶつかることがあると知らせます
+• 移動をオフにすると、セクションを左に滑らせて削除できます
+【変更】
+• セクションの右クリックにある削除は赤く、見つけやすくなりました
+• 歌詞の上でホイールを回すと、ページも一緒に動きます
+• 右クリックの削除は赤いゴミ箱の絵になりました
+• 曲情報の開閉が滑らかになりました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 설정에 섹션 드래그 스위치가 생겼고 기본은 꺼짐입니다. 켜기 전에 가사 편집, 왼쪽으로 밀어 지우기와 부딪힐 수 있다고 알립니다
+• 드래그를 끄면 섹션을 왼쪽으로 밀어 지울 수 있습니다
+【변경】
+• 섹션 오른쪽 클릭의 삭제가 더 잘 보이게 빨간색입니다
+• 가사 위에서 휠을 굴리면 페이지도 같이 움직입니다
+• 오른쪽 클릭의 삭제는 빨간 휴지통 그림입니다
+• 곡 정보를 펼치고 접는 느낌이 더 부드럽습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Ajustes tiene un interruptor para arrastrar secciones, apagado al principio. Al encenderlo avisa de que puede chocar con editar la letra y borrar deslizando
+• Con el arrastre apagado, una sección se borra deslizando a la izquierda
+【Cambios】
+• Eliminar en el menú contextual de la sección se ve mejor y en rojo
+• La rueda sobre la letra también desplaza la página
+• Eliminar en los menús contextuales usa un cubo rojo
+• Los datos de la canción se abren y se cierran con más suavidad
+""",
         ),
         Entry(
             version: "v1.7.8 Delta",
             date: "2026-06-23",
             isLatest: false,
             bodyMarkdown: """
-## 新增功能
-
-- 段落右键菜单新增「上移至顶部」「下移至底部」
-
-## 优化
-
-- 修复曲目库点击歌曲 0.3s 延迟（去掉视图强制重建 + Set 加速 contains）
-- 段落拖动改用 ScrollView + LazyVStack，任意位置按住即可拖；新增拖动时光标接近顶部自动向上滚动
+【新增】
+• 段落的右键菜单可以把它移到最上面或最下面
+• 点曲目列表里的歌不再慢半拍。拖动段落时，靠近顶部会自动往上滚
 """,
             bodyMarkdownZHT: """
-## 新增功能
-
-- 段落右鍵選單新增「上移至頂部」「下移至底部」
-
-## 優化
-
-- 修復曲目庫點擊歌曲 0.3s 延遲（去掉視圖強制重建 + Set 加速 contains）
-- 段落拖動改用 ScrollView + LazyVStack，任意位置按住即可拖；新增拖動時游標接近頂部自動向上捲動
+【新增】
+• 段落的右鍵選單可以把它移到最上面或最下面
+• 點曲目列表裡的歌不再慢半拍。拖動段落時，靠近頂部會自動往上滾
 """,
             bodyMarkdownEN: """
-## New Features
-
-- Section context menu: added "Move to Top" and "Move to Bottom"
-
-## Improvements
-
-- Fixed 0.3s delay when clicking a song in the library (removed forced view rebuild + Set-based contains)
-- Section drag rewritten with ScrollView + LazyVStack — press anywhere to drag; auto-scrolls up when cursor approaches the top
+【New】
+• A section's right-click menu can move it to the very top or the very bottom
+• Choosing a song in the list is no longer sluggish. Dragging a section near the top scrolls upward
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- セクションの右クリックメニューに「一番上に移動」「一番下に移動」を追加
-
-## 改善
-
-- 楽曲庫で曲をクリックしたときの 0.3 秒遅延を修正（ビュー強制再構築を削除 + Set で contains を高速化）
-- セクションのドラッグを ScrollView + LazyVStack で再実装：任意の位置で長押ししてドラッグ可能に、ドラッグ中にカーソルが上部近くに来たら自動で上方向にスクロール
-"""
+【新機能】
+• セクションの右クリックから、一番上か一番下へ移せます
+• 曲一覧で曲を押したときの遅れをなくしました。セクションを上の方まで拖ると自動で上へ動きます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 섹션 오른쪽 클릭으로 맨 위나 맨 아래로 옮길 수 있습니다
+• 곡 목록에서 곡을 누를 때 늦던 것을 없앴습니다. 섹션을 위쪽까지 끌면 자동으로 위로 움직입니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• El menú contextual de una sección puede llevarla al principio o al final
+• Elegir una canción en la lista ya no va con retraso. Arrastrar una sección cerca de arriba desplaza hacia arriba
+""",
         ),
         Entry(
             version: "v1.7.8 Gamma",
             date: "2026-06-23",
             isLatest: false,
             bodyMarkdown: """
-## 新增功能
-
-- 编辑区歌词段落可拖动重排：拖到目标段落**上方**插入到该段之前；拖到列表末尾的虚线占位区添加到末尾；拖动时目标位置显示系统条带（2.5pt 高蓝色横线）
-- 歌词段落拖动不依赖 List 编辑模式（任意时刻按住段落即可拖）
-
-## Bug 修复
-
-- 修复歌词段落左滑删除按钮判定范围太广的问题：`.onDelete` 替换为 `.swipeActions(edge: .trailing, allowsFullSwipe: false)`，删除按钮判定严格限制在按钮内，点击空白处自动 dismiss
+【新增】
+• 编辑区里的段落可以拖着调整顺序。拖到某一段的上半就插到它前面，拖到列表末尾就放到最后
+• 向左滑删除时，只有真正点到删除按钮才会删，点到旁边会自己收回去
 """,
             bodyMarkdownZHT: """
-## 新增功能
-
-- 編輯區歌詞段落可拖動重排：拖到目標段落**上方**插入到該段之前；拖到列表末尾的虛線佔位區添加到末尾；拖動時目標位置顯示系統條帶（2.5pt 高藍色橫線）
-- 歌詞段落拖動不依賴 List 編輯模式（任意時刻按住段落即可拖）
-
-## Bug 修復
-
-- 修復歌詞段落左滑刪除按鈕判定範圍太廣的問題：`.onDelete` 替換為 `.swipeActions(edge: .trailing, allowsFullSwipe: false)`，刪除按鈕判定嚴格限制在按鈕內，點擊空白處自動 dismiss
+【新增】
+• 編輯區裡的段落可以拖著調整順序。拖到某一段的上半就插到它前面，拖到列表末尾就放到最後
+• 向左滑刪除時，只有真正點到刪除按鈕才會刪，點到旁邊會自己收回去
 """,
             bodyMarkdownEN: """
-## New Features
-
-- Sections can now be dragged to reorder: drop on the **top edge** of a target section to insert before it; drop on the dashed placeholder at the end of the list to append; a 2.5pt blue bar shows the drop position while dragging
-- Section drag no longer requires List edit mode — just press and drag anytime
-
-## Bug Fixes
-
-- Fixed swipe-to-delete button having too wide a hit area: replaced `.onDelete` with `.swipeActions(edge: .trailing, allowsFullSwipe: false)`. The delete button now only triggers when the button itself is tapped, and the action auto-dismisses on outside tap
+【New】
+• Sections in the editor can be dragged to reorder them. The upper half inserts before, and the end of the list adds it last
+• When swiping left to delete, only a tap on the delete button deletes. Tapping beside it closes the button
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- 編集エリアの歌詞セクションをドラッグして並び替え可能：ターゲットセクションの**上端**にドロップするとそのセクションの前に挿入、リスト末尾の破線プレースホルダにドロップすると末尾に追加、ドラッグ中はドロップ位置にシステムバンド（高さ 2.5pt の青い線）が表示される
-- セクションのドラッグは List の編集モードに依存しない（いつでも長押しでドラッグ可能）
-
-## バグ修正
-
-- セクションのスワイプ削除ボタンのタップ判定が広すぎる問題を修正：`.onDelete` を `.swipeActions(edge: .trailing, allowsFullSwipe: false)` に置き換え、削除ボタンの判定をボタン内に厳格に限定、外側をタップすると自動で閉じる
-"""
+【新機能】
+• 編集画面のセクションを拖って並べ替えられます。上半分に置くとその前、一覧の最後に置くと末尾です
+• 左に滑らせて消すとき、削除ボタンを押したときだけ消えます。脇を押すとボタンは戻ります
+""",
+            bodyMarkdownKO: """
+【추가】
+• 편집 화면의 섹션을 끌어 순서를 바꿀 수 있습니다. 위쪽에 놓으면 앞에, 목록 끝에 놓으면 마지막입니다
+• 왼쪽으로 밀어 지울 때, 삭제 버튼을 눌렀을 때만 지워집니다. 옆을 누르면 버튼이 들어갑니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Las secciones del editor se pueden arrastrar para ordenarlas. La mitad superior inserta antes, y el final de la lista la deja al último
+• Al deslizar para borrar, solo un toque en el botón de borrar elimina. Tocar al lado lo guarda
+""",
         ),
         Entry(
             version: "v1.7.8 Beta",
             date: "2026-06-23",
             isLatest: false,
             bodyMarkdown: """
-## 新增功能
-
-- 曲目库歌曲可拖动：拖到文件夹移入 / 拖到根目录歌曲移出 / 拖到目标歌曲前插入 + 手动改排序
-- 多选右键菜单移除「批量备份」（与「批量导出」功能相同）
-
-## Bug 修复
-
-- 修复设置里"删除前确认"开关滑块首次打开不显示的 Bug：用 `DispatchQueue.main.async` 在 NSSwitch 加入 view hierarchy 后强制 layout + display，每次 updateNSView 兜底
+【新增】
+• 曲目列表里的歌可以拖进文件夹、拖出文件夹，或拖到另一首歌前面来排序
+• 多选时的右键菜单里拿掉了和批量导出重复的备份。删除前确认的开关第一次打开就能看见滑块了
 """,
             bodyMarkdownZHT: """
-## 新增功能
-
-- 曲目庫歌曲可拖動：拖到資料夾移入 / 拖到根目錄歌曲移出 / 拖到目標歌曲前插入 + 手動改排序
-- 多選右鍵選單移除「批次備份」（與「批次匯出」功能相同）
-
-## Bug 修復
-
-- 修復設定裡「刪除前確認」開關滑塊首次打開不顯示的 Bug：用 `DispatchQueue.main.async` 在 NSSwitch 加入 view hierarchy 後強制 layout + display，每次 updateNSView 兜底
+【新增】
+• 曲目列表裡的歌可以拖進資料夾、拖出資料夾，或拖到另一首歌前面來排序
+• 多選時的右鍵選單裡拿掉了和批次匯出重複的備份。刪除前確認的開關第一次打開就能看見滑塊了
 """,
             bodyMarkdownEN: """
-## New Features
-
-- Song library is now drag-and-drop: drag onto a folder to move in, drag onto a root song to move out, drop before a target song to insert and reorder
-- Removed "Batch Backup" from the multi-select right-click menu (identical to "Batch Export")
-
-## Bug Fixes
-
-- Fixed: the "Confirm before delete" toggle thumb was not visible on first open of Settings. Now forces NSSwitch layout + display via `DispatchQueue.main.async` after it's added to the view hierarchy, with a fallback in every `updateNSView`
+【New】
+• Songs in the list can be dragged into a folder, out of a folder, or in front of another song to reorder them
+• The duplicate backup item was removed from the multi-select menu. The confirm-before-delete switch shows its slider the first time it opens
 """,
             bodyMarkdownJA: """
-## 新機能
-
-- 曲目ライブラリの楽曲をドラッグ可能：フォルダにドロップして移動 / ルート上の曲にドロップしてルートへ戻す / 対象曲の前にドロップして挿入 + 手動で並び替え
-- 複数選択の右クリックメニューから「一括バックアップ」を削除（「一括エクスポート」と機能重複のため）
-
-## バグ修正
-
-- 修正：設定の「削除前に確認」スイッチのサムが初回オープン時に表示されないバグ。`DispatchQueue.main.async` で NSSwitch が view hierarchy に追加された直後に layout + display を強制し、各 `updateNSView` でもフォールバック処理を行うように修正
-"""
+【新機能】
+• 曲一覧の曲をフォルダへ入れたり出したり、別の曲の前に置いて並べ替えたりできます
+• 複数選択のメニューから、一括書き出しと重なるバックアップを外しました。削除前確認のスイッチは最初からつまみが見えます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 곡 목록의 곡을 폴더에 넣거나 빼고, 다른 곡 앞에 놓아 순서를 바꿀 수 있습니다
+• 여러 개 선택의 메뉴에서 일괄 내보내기와 겹치던 백업을 뺐습니다. 삭제 전 확인 스위치는 처음 열어도 손잡이가 보입니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Las canciones de la lista se pueden meter en una carpeta, sacar de ella o poner delante de otra para ordenarlas
+• Se quitó la copia repetida del menú de selección múltiple. El interruptor de confirmar el borrado muestra su deslizador desde la primera vez
+""",
         ),
         Entry(
             version: "v1.7.7 Delta",
             date: "2026-06-23",
             isLatest: false,
-            bodyMarkdown: "歌曲元信息新增节拍器（BPM + 拍号发声 + 闪烁）；修复设置里技能炼成副标题未做多语言适配；使用指南新增繁中 zhtSections",
-            bodyMarkdownZHT: "歌曲元資訊新增節拍器（BPM + 拍號發聲 + 閃爍）；修復設定裡技能煉成副標題未做多語系適配；使用指南新增繁中 zhtSections",
-            bodyMarkdownEN: "Song metadata adds Metronome (BPM + beat sound + blink); fixed missing localization on the Skill Integrated caption; Usage Guide adds Traditional Chinese zhtSections",
-            bodyMarkdownJA: "楽曲メタ情報にメトロノーム追加（BPM + 拍子発声 + フラッシュ）；設定のスキル錬成キャプションのローカライズ漏れを修正；使い方ガイドに繁体中文 zhtSections 追加"
+            bodyMarkdown: """
+【新增】
+• 歌曲信息里增加了节拍器，会按速度发出拍子并闪一下
+• 修正了技能说明没有翻译的问题，使用说明也补上了繁体中文
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 歌曲資訊裡增加了節拍器，會按速度發出拍子並閃一下
+• 修正了技能說明沒有翻譯的問題，使用說明也補上了繁體中文
+""",
+            bodyMarkdownEN: """
+【New】
+• Song details include a metronome that clicks and flashes with the tempo
+• The skill description is translated now, and the guide includes traditional Chinese
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 曲情報にメトロノームが増え、テンポに合わせて音と点滅が出ます
+• スキルの説明が翻訳されるようになり、使い方ガイドに繁体字中国語も入りました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 곡 정보에 메트로놈이 생겨, 빠르기에 맞춰 소리와 깜빡임이 납니다
+• 스킬 설명이 번역되고, 사용 안내에도 번체 중국어가 들어갔습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Los datos de la canción incluyen un metrónomo que suena y parpadea con el tempo
+• La descripción de la habilidad ya está traducida, y la guía incluye chino tradicional
+""",
         ),
         Entry(
             version: "v1.7.7 Gamma",
             date: "2026-06-23",
             isLatest: false,
-            bodyMarkdown: "设置新增技能炼成（位置在帮助上方）；下载链接（跳转 GitHub）；版本信息开发者栏加 vlantech@126.com；技能炼成导出改文件夹结构；用真 logo 图替换占位图；技能炼成小字注释补 4 语言；使用指南小字删括号注释",
-            bodyMarkdownZHT: "設定新增技能煉成（位置在說明上方）；下載連結（跳轉 GitHub）；版本資訊開發者欄加 vlantech@126.com；技能煉成匯出改資料夾結構；用真 logo 圖替換佔位圖；技能煉成小字註釋補 4 語系；使用指南小字刪括號註解",
-            bodyMarkdownEN: "Settings adds Skill Integrated (above Help); Download Link (opens GitHub); Developer row gets vlantech@126.com; Skill Integrated export uses folder layout; replace placeholder logo with real logo image; Skill Integrated caption localized to 4 languages; remove parenthetical from Usage Guide caption",
-            bodyMarkdownJA: "設定にスキル錬成追加（ヘルプの上）；ダウンロードリンク（GitHub へ移動）；バージョン情報の開発者行に vlantech@126.com 追加；スキル錬成のエクスポートをフォルダ構造に変更；プレースホルダ logo を本物の logo 画像に差し替え；スキル錬成キャプションの 4 言語化；使い方ガイドキャプションの括弧注釈を削除"
+            bodyMarkdown: """
+【新增】
+• 设置里增加了技能导出，放在帮助上面。也可以从这里打开下载页，关于里能看到开发者邮箱
+• 用真正的标志图换掉了占位图，技能和使用说明的小字也整理过了
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 設定裡增加了技能匯出，放在幫助上面。也可以從這裡打開下載頁，關於裡能看到開發者郵箱
+• 用真正的標誌圖換掉了佔位圖，技能和使用說明的小字也整理過了
+""",
+            bodyMarkdownEN: """
+【New】
+• Settings gained skill export above Help, a way to open the download page, and the developer email in About
+• The placeholder picture was replaced with the real logo, and the small notes for skills and the guide were cleaned up
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 設定にスキルの書き出しが増え、ヘルプの上にあります。ダウンロードページも開け、情報に開発者のメールが出ます
+• 仮の絵を本物のロゴに替え、スキルと使い方の小さな注記も整えました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 설정에 스킬 내보내기가 도움말 위에 생겼습니다. 다운로드 페이지도 열 수 있고, 정보에 개발자 메일이 나옵니다
+• 자리 표시 그림을 실제 로고로 바꾸고, 스킬과 사용 안내의 작은 글도 다듬었습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Ajustes tiene la exportación de habilidades encima de Ayuda, un enlace de descarga y el correo del desarrollador en Acerca de
+• La imagen de relleno se sustituyó por el logotipo real, y se ordenaron las notas pequeñas de las habilidades y la guía
+""",
         ),
-                Entry(
+        Entry(
             version: "v1.7.5 Gamma",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "⌘N 接管新建歌曲、⌘D 删除多选、帮助栏目 + 更新日志做多语言适配（4 语言）",
-            bodyMarkdownZHT: "⌘N 接管新建歌曲、⌘D 刪除多選、說明欄目 + 更新日誌做多語系適配（4 語系）",
-            bodyMarkdownEN: "⌘N now triggers New Song; ⌘D deletes selected songs; Help section + Changelog localized to 4 languages",
-            bodyMarkdownJA: "⌘N で新規楽曲、⌘D で選択削除；ヘルプと更新履歴を 4 言語化"
+            bodyMarkdown: """
+【新增】
+• Command-N 新建歌曲，Command-D 删除选中的歌。帮助和更新日志会跟着界面语言变化
+""",
+            bodyMarkdownZHT: """
+【新增】
+• Command-N 新建歌曲，Command-D 刪除選中的歌。幫助和更新日誌會跟著介面語言變化
+""",
+            bodyMarkdownEN: """
+【New】
+• Command-N creates a song and Command-D deletes the selection. Help and the changelog follow the interface language
+""",
+            bodyMarkdownJA: """
+【新機能】
+• Command-N で新しい曲、Command-D で選択した曲を削除します。ヘルプと更新履歴は表示言語に従います
+""",
+            bodyMarkdownKO: """
+【추가】
+• Command-N으로 새 곡을 만들고 Command-D로 고른 곡을 지웁니다. 도움말과 업데이트 기록은 화면 언어를 따릅니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Command-N crea una canción y Command-D borra la selección. La ayuda y el registro siguen el idioma de la interfaz
+""",
         ),
         Entry(
             version: "v1.7.5 Beta",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "主题切换立即生效；删除确认开关首次可见；帮助栏目新增使用指南（4 语言）",
-            bodyMarkdownZHT: "主題切換立即生效；刪除確認開關首次可見；說明欄目新增使用指南（4 語系）",
-            bodyMarkdownEN: "Theme switch now instant; delete-confirm toggle visible on first open; Help section adds Usage Guide (4 languages)",
-            bodyMarkdownJA: "テーマ切替が即時反映；削除確認スイッチが初表示で見える；ヘルプに使用ガイド追加（4 言語）"
+            bodyMarkdown: """
+【新增】
+• 切换外观主题会马上生效。删除确认的开关第一次就能看见。帮助里增加了使用说明
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 切換外觀主題會馬上生效。刪除確認的開關第一次就能看見。幫助裡增加了使用說明
+""",
+            bodyMarkdownEN: """
+【New】
+• Changing the theme applies at once. The delete-confirmation switch is visible the first time. Help includes a usage guide
+""",
+            bodyMarkdownJA: """
+【新機能】
+• テーマの切り替えはすぐに反映されます。削除確認のスイッチは最初から見え、ヘルプに使い方ガイドが増えました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 테마를 바꾸면 바로 적용됩니다. 삭제 확인 스위치는 처음부터 보이고, 도움말에 사용 안내가 생겼습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• El cambio de tema se aplica al momento. El interruptor de confirmar el borrado se ve desde el principio. La ayuda incluye una guía de uso
+""",
         ),
         Entry(
             version: "v1.7.4 Delta",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "主题切换立即生效；删除确认开关首次打开即可见滑块",
-            bodyMarkdownZHT: "主題切換立即生效；刪除確認開關首次打開即可見滑塊",
-            bodyMarkdownEN: "Theme switch now instant; delete-confirm toggle visible on first open",
-            bodyMarkdownJA: "テーマ切替が即時反映；削除確認スイッチが初表示で見える"
+            bodyMarkdown: """
+【新增】
+• 切换外观会马上生效，删除确认开关第一次打开就能看见滑块
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 切換外觀會馬上生效，刪除確認開關第一次打開就能看見滑塊
+""",
+            bodyMarkdownEN: """
+【New】
+• The theme changes at once, and the delete-confirmation switch shows its slider the first time it opens
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 見た目の切り替えはすぐ反映され、削除確認のスイッチは最初からつまみが見えます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 모양을 바꾸면 바로 적용되고, 삭제 확인 스위치는 처음 열어도 손잡이가 보입니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• El tema cambia al momento y el interruptor de confirmar el borrado muestra su deslizador desde la primera apertura
+""",
         ),
         Entry(
             version: "v1.7.4 Gamma",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "修复文件夹内歌曲右键不出菜单；单选不再显示「已选 1 项」工具栏；清理累积的 isLatest 标记",
-            bodyMarkdownZHT: "修復資料夾內歌曲右鍵不出選單；單選不再顯示「已選 1 項」工具列；清理累積的 isLatest 標記",
-            bodyMarkdownEN: "Fixed: right-click menu missing inside folders; single-select no longer shows \"1 selected\" toolbar; cleaned up stale isLatest flags",
-            bodyMarkdownJA: "フォルダ内曲の右クリックメニューが出ない問題を修正；単一選択時は「1 項選択済」ツールバーを表示しない；isLatest フラグを整理"
+            bodyMarkdown: """
+【修复】
+• 文件夹里面的歌也能正常弹出右键菜单。只选一首歌时不再显示已选一项的工具条
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 資料夾裡面的歌也能正常彈出右鍵選單。只選一首歌時不再顯示已選一項的工具列
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Songs inside a folder show their right-click menu again. Selecting a single song no longer shows a one-item toolbar
+""",
+            bodyMarkdownJA: """
+【修正】
+• フォルダの中の曲でも右クリックメニューが出ます。一曲だけ選んでも「1件選択」のバーは出ません
+""",
+            bodyMarkdownKO: """
+【수정】
+• 폴더 안의 곡에서도 오른쪽 클릭 메뉴가 나옵니다. 곡 하나만 골라도 한 개 선택 막대는 나오지 않습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Las canciones dentro de una carpeta vuelven a mostrar su menú contextual. Elegir una sola ya no muestra una barra de un elemento
+""",
         ),
         Entry(
             version: "v1.7.4 Beta",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "侧栏右键菜单逻辑梳理；删除「备份文件夹」；回收站支持双击展开；所有删除操作播放系统 trash 音效",
-            bodyMarkdownZHT: "側欄右鍵選單邏輯梳理；刪除「備份資料夾」；回收桶支援雙擊展開；所有刪除操作播放系統 trash 音效",
-            bodyMarkdownEN: "Sidebar right-click menu logic cleanup; removed \"Backup Folder\"; trash supports double-click expand; all delete ops play system trash sound",
-            bodyMarkdownJA: "サイドバー右クリックメニュー整理；「フォルダをバックアップ」を削除；ゴミ箱はダブルクリックで展開対応；全削除操作でシステム trash 効果音再生"
+            bodyMarkdown: """
+【改动】
+• 整理了侧栏的右键菜单，拿掉了备份文件夹。回收站可以双击展开。删除时会播放系统的废纸篓声音
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 整理了側欄的右鍵選單，拿掉了備份資料夾。回收桶可以雙擊展開。刪除時會播放系統的廢紙簍聲音
+""",
+            bodyMarkdownEN: """
+【Changed】
+• The sidebar menu was tidied and folder backup was removed. The trash opens with a double click. Deleting plays the system trash sound
+""",
+            bodyMarkdownJA: """
+【変更】
+• サイドバーの右クリックを整え、フォルダのバックアップを外しました。ゴミ箱はダブルクリックで開き、削除時にはシステムのゴミ箱の音が鳴ります
+""",
+            bodyMarkdownKO: """
+【변경】
+• 사이드바 오른쪽 클릭을 정리하고 폴더 백업을 뺐습니다. 휴지통은 두 번 눌러 열리고, 지울 때 시스템 휴지통 소리가 납니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Se ordenó el menú de la barra lateral y se quitó la copia de la carpeta. La papelera se abre con doble clic. Al borrar suena la papelera del sistema
+""",
         ),
         Entry(
             version: "v1.7.3 Delta",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "彻底修复「绿色块」（去除 `List(selection:)` 系统 tint）；ContentView 加 .preferredColorScheme(themeManager.preferredColorScheme)",
-            bodyMarkdownZHT: "徹底修復「綠色塊」（去除 `List(selection:)` 系統 tint）；ContentView 加 .preferredColorScheme(themeManager.preferredColorScheme)",
-            bodyMarkdownEN: "Finally killed the green block (removed `List(selection:)` system tint); ContentView adds .preferredColorScheme(themeManager.preferredColorScheme)",
-            bodyMarkdownJA: "「緑色のブロック」を完全除去（`List(selection:)` のシステム tint を削除）；ContentView に .preferredColorScheme(themeManager.preferredColorScheme) を追加"
+            bodyMarkdown: """
+【修复】
+• 浅色时列表上不该出现的绿色块去掉了，设置里的外观也会跟着系统或所选主题走
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 淺色時列表上不該出現的綠色塊去掉了，設定裡的外觀也會跟著系統或所選主題走
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• The unwanted green block on the list in light mode is gone, and the app follows the system or the chosen theme
+""",
+            bodyMarkdownJA: """
+【修正】
+• ライトモードの一覧に出ていた緑の塊をなくし、見た目はシステムか選んだテーマに従います
+""",
+            bodyMarkdownKO: """
+【수정】
+• 밝은 모드 목록에 나오던 초록 덩어리를 없애고, 모양은 시스템이나 고른 테마를 따릅니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Desapareció el bloque verde de la lista en modo claro, y la aplicación sigue al sistema o al tema elegido
+""",
         ),
         Entry(
             version: "v1.7.3 Gamma",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "彻底修复浅色模式文字图标不可视（所有 .secondary/.tertiary → .primary）；删除段落背景系统色块 + 加外层 5pt 间距 2pt 系统色粗边框",
-            bodyMarkdownZHT: "徹底修復淺色模式文字圖示不可視（所有 .secondary/.tertiary → .primary）；刪除段落背景系統色塊 + 加外層 5pt 間距 2pt 系統色粗邊框",
-            bodyMarkdownEN: "Fixed invisible text/icons in light mode (all .secondary/.tertiary → .primary); removed section background system color block + added 5pt padding + 2pt system color border",
-            bodyMarkdownJA: "ライトモードで文字・アイコンが見えない問題を完全修正（.secondary/.tertiary → .primary）；セクション背景のシステムカラーブロックを除去 + 外側 5pt 余白 + 2pt システムカラー太枠を追加"
+            bodyMarkdown: """
+【修复】
+• 浅色模式下看不清的文字和图标改成看得清的颜色。段落四周的底色块拿掉了，改成细一点的边距和边框
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 淺色模式下看不清的文字和圖示改成看得清的顏色。段落四周的底色塊拿掉了，改成細一點的邊距和邊框
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Text and icons that vanished in light mode are readable again. The flat color behind a section was replaced with a lighter margin and border
+""",
+            bodyMarkdownJA: """
+【修正】
+• ライトモードで見えなかった文字とアイコンが見える色になりました。セクション背面の色塊をやめ、余白と枠にしました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 밝은 모드에서 안 보이던 글자와 아이콘이 보이는 색이 되었습니다. 섹션 뒤의 색 덩어리를 없애고 여백과 테두리로 바꿨습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• El texto y los iconos invisibles en modo claro vuelven a leerse. El bloque de color tras la sección pasó a un margen y un borde más ligeros
+""",
         ),
         Entry(
             version: "v1.7.3 Beta",
             date: "2026-06-21",
             isLatest: false,
-            bodyMarkdown: "引入 ThemeColor 色板（基于 Color.primary.opacity）；闪烁时长 800ms → 500ms",
-            bodyMarkdownZHT: "引入 ThemeColor 色板（基於 Color.primary.opacity）；閃爍時長 800ms → 500ms",
-            bodyMarkdownEN: "Introduced ThemeColor palette (based on Color.primary.opacity); flash duration 800ms → 500ms",
-            bodyMarkdownJA: "ThemeColor パレット導入（Color.primary.opacity ベース）；点滅時間 800ms → 500ms"
+            bodyMarkdown: """
+【改动】
+• 颜色改成跟着文字颜色走，深浅模式下都更一致。跳转后的闪烁时间从零点八秒缩短到半秒
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 顏色改成跟著文字顏色走，深淺模式下都更一致。跳轉後的閃爍時間從零點八秒縮短到半秒
+""",
+            bodyMarkdownEN: """
+【Changed】
+• Colors now follow the text color, so light and dark stay consistent. The jump flash was shortened from eight tenths of a second to half a second
+""",
+            bodyMarkdownJA: """
+【変更】
+• 色は文字色に沿い、ライトとダークで揃いました。ジャンプ後の点滅は〇・八秒から〇・五秒になりました
+""",
+            bodyMarkdownKO: """
+【변경】
+• 색이 글자색을 따라 밝은 화면과 어두운 화면이 더 맞습니다. 이동 뒤 깜빡임은 0.8초에서 0.5초로 줄었습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Los colores siguen al texto, así que el modo claro y el oscuro coinciden. El parpadeo al saltar pasó de ocho décimas a medio segundo
+""",
         ),
         Entry(
             version: "v1.7.2 Beta",
             date: "2026-06-20",
             isLatest: false,
-            bodyMarkdown: "闪烁只触发指定段落（不再全部段落一起闪）；段落 border fallback accent 删掉",
-            bodyMarkdownZHT: "閃爍只觸發指定段落（不再全部段落一起閃）；段落 border fallback accent 刪除",
-            bodyMarkdownEN: "Flash now only triggers the target section (no more flashing all sections); removed section border accent fallback",
-            bodyMarkdownJA: "点滅は指定セクションのみ発火（全セクション同時点滅を解消）；セクション border のフォールバック accent を削除"
+            bodyMarkdown: """
+【修复】
+• 跳转后只有被点到的那一段会闪一下，不再整首歌一起闪。段落边框上多余的强调色也拿掉了
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 跳轉後只有被點到的那一段會閃一下，不再整首歌一起閃。段落邊框上多餘的強調色也拿掉了
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• After a jump, only the section you chose flashes, not the whole song. The extra accent on the section border was removed
+""",
+            bodyMarkdownJA: """
+【修正】
+• ジャンプしたあと点滅するのは選んだセクションだけで、曲全体は点滅しません。枠の余分な強調色も外しました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 이동한 뒤에는 고른 섹션만 깜빡이고 곡 전체가 같이 깜빡이지 않습니다. 섹션 테두리의 남은 강조색도 뺐습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Tras un salto solo parpadea la sección elegida, no la canción entera. Se quitó el acento de más del borde
+""",
         ),
         Entry(
             version: "v1.7.1",
             date: "2026-06-20",
             isLatest: false,
-            bodyMarkdown: "去除编辑段落常亮高亮 + 跳转闪烁动画 + 双击跳转聚焦 TextEditor + 删除 dmg README.txt",
-            bodyMarkdownZHT: "去除編輯段落常亮高亮 + 跳轉閃爍動畫 + 雙擊跳轉聚焦 TextEditor + 刪除 dmg README.txt",
-            bodyMarkdownEN: "Removed edit-section persistent highlight + jump flash animation + double-click jump focus TextEditor + dropped dmg README.txt",
-            bodyMarkdownJA: "編集セクション常時ハイライト + ジャンプ点滅アニメ + ダブルクリックで TextEditor フォーカス を削除；dmg README.txt を削除"
+            bodyMarkdown: """
+【改动】
+• 去掉了正在编辑的段落一直高亮、跳过去时闪烁，以及双击才把光标放进歌词这几项。安装包里的说明文本也拿掉了
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 去掉了正在編輯的段落一直高亮、跳過去時閃爍，以及雙擊才把游標放進歌詞這幾項。安裝包裡的說明文本也拿掉了
+""",
+            bodyMarkdownEN: """
+【Changed】
+• The always-on section highlight, the flash on jump, and focusing the lyrics with a double click were removed. The extra readme in the installer was removed too
+""",
+            bodyMarkdownJA: """
+【変更】
+• 編集中のセクションを常に明るくすること、ジャンプ時の点滅、ダブルクリックで歌詞に入ることをやめました。インストーラの説明文も外しました
+""",
+            bodyMarkdownKO: """
+【변경】
+• 편집 중인 섹션을 항상 밝게 두던 것, 이동할 때의 깜빡임, 두 번 눌러야 가사에 들어가던 것을 뺐습니다. 설치 파일의 설명 글도 뺐습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Se quitaron el resalte fijo de la sección en edición, el parpadeo al saltar y el foco en la letra con doble clic. También se quitó el texto de ayuda del instalador
+""",
         ),
         Entry(
             version: "v1.7 Beta",
             date: "2026-06-20",
             isLatest: false,
-            bodyMarkdown: "歌词预览模块（与右栏灵感互斥切换）；编辑区 ↔ 预览区联动；节拍字段在折叠状态显示",
-            bodyMarkdownZHT: "歌詞預覽模組（與右欄靈感互斥切換）；編輯區 ↔ 預覽區聯動；節拍欄位在折疊狀態顯示",
-            bodyMarkdownEN: "Lyrics preview module (toggles with right Ideas panel); editor ↔ preview cross-link; beat field shown when collapsed",
-            bodyMarkdownJA: "歌詞プレビューモジュール（右パネル Ideas と排他切替）；編集 ↔ プレビュー連動；拍子フィールドは折りたたみ時表示"
+            bodyMarkdown: """
+【新增】
+• 增加了歌词预览，和右侧的灵感轮流使用。编辑区和预览会一起跳到同一段。节拍在收起歌曲信息时也能看见
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 增加了歌詞預覽，和右側的靈感輪流使用。編輯區和預覽會一起跳到同一段。節拍在收起歌曲資訊時也能看見
+""",
+            bodyMarkdownEN: """
+【New】
+• Lyrics preview was added and shares the right side with ideas. The editor and the preview jump to the same section. The meter stays visible when song details are collapsed
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 歌詞プレビューが増え、右のアイデアと交代で使います。編集とプレビューは同じセクションへ動きます。曲情報を畳んでも拍子は見えます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 가사 미리보기가 생겼고 오른쪽 아이디어와 번갈아 씁니다. 편집과 미리보기는 같은 섹션으로 이동합니다. 곡 정보를 접어도 박자는 보입니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Llegó la vista previa de la letra y comparte el lado derecho con las ideas. El editor y la vista previa saltan a la misma sección. El compás se ve aunque se plieguen los datos
+""",
         ),
         Entry(
             version: "v1.6.1 Beta",
             date: "2026-06-19",
             isLatest: false,
-            bodyMarkdown: "SystemSwitchToggle（NSViewRepresentable 包裹 NSSwitch）；日语假名词典扩到 2298 词",
-            bodyMarkdownZHT: "SystemSwitchToggle（NSViewRepresentable 包裹 NSSwitch）；日語假名詞典擴到 2298 詞",
-            bodyMarkdownEN: "SystemSwitchToggle (NSViewRepresentable wrapping NSSwitch); Japanese furigana dictionary expanded to 2298 words",
-            bodyMarkdownJA: "SystemSwitchToggle（NSViewRepresentable で NSSwitch をラップ）；日本語ふりがな辞書を 2298 語に拡張"
+            bodyMarkdown: """
+【改动】
+• 开关改成系统原生的样子。日语读音词库扩充到两千多个词
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 開關改成系統原生的樣子。日語讀音詞庫擴充到兩千多個詞
+""",
+            bodyMarkdownEN: """
+【Changed】
+• Switches now look like the system ones. The Japanese reading dictionary grew past two thousand words
+""",
+            bodyMarkdownJA: """
+【変更】
+• スイッチをシステムの見た目にしました。日本語の読み辞書は二千語を超えました
+""",
+            bodyMarkdownKO: """
+【변경】
+• 스위치가 시스템 모양이 되었습니다. 일본어 읽기 사전이 이천 단어를 넘었습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• Los interruptores tienen el aspecto del sistema. El diccionario de lecturas japonesas pasó de dos mil palabras
+""",
         ),
         Entry(
             version: "v1.6 Beta",
             date: "2026-06-19",
             isLatest: false,
-            bodyMarkdown: "节拍字段（2/4 / 3/4 / 4/4 / 6/8 / 7/8 / 9/8 / 12/8）；歌词导出全部用英文 key；文件夹双击展开/删除",
-            bodyMarkdownZHT: "節拍欄位（2/4 / 3/4 / 4/4 / 6/8 / 7/8 / 9/8 / 12/8）；歌詞匯出全部用英文 key；資料夾雙擊展開/刪除",
-            bodyMarkdownEN: "Beat field (2/4 / 3/4 / 4/4 / 6/8 / 7/8 / 9/8 / 12/8); lyric export uses English keys; folder double-click to expand/delete",
-            bodyMarkdownJA: "拍子フィールド（2/4 / 3/4 / 4/4 / 6/8 / 7/8 / 9/8 / 12/8）；歌詞エクスポートは英文キー；フォルダはダブルクリックで展開/削除"
+            bodyMarkdown: """
+【新增】
+• 增加了节拍，可选二四、三四、四四等常见拍子。导出的歌词字段用稳定的英文名字。文件夹双击可以展开或删除
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 增加了節拍，可選二四、三四、四四等常見拍子。匯出的歌詞欄位用穩定的英文名字。資料夾雙擊可以展開或刪除
+""",
+            bodyMarkdownEN: """
+【New】
+• A meter field was added, with common values such as two-four, three-four, and four-four. Exported lyric fields use stable English names. Double-click a folder to open or delete it
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 拍子欄が増え、二四、三四、四四などの一般的な拍子を選べます。書き出した歌詞の項目名は安定した英語です。フォルダはダブルクリックで開閉または削除できます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 박자 칸이 생겼고 2/4, 3/4, 4/4 같은 흔한 박자를 고릅니다. 내보낸 가사 항목 이름은 안정된 영어입니다. 폴더는 두 번 눌러 열거나 지웁니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Se añadió el compás, con valores habituales como dos por cuatro, tres por cuatro y cuatro por cuatro. Los campos exportados usan nombres estables en inglés. Una carpeta se abre o se borra con doble clic
+""",
         ),
         Entry(
             version: "v1.5.2 Beta",
             date: "2026-06-18",
             isLatest: false,
-            bodyMarkdown: "多选（Set<UUID>）；批量操作（备份/导出/合并/移到回收站）；扁平文件夹导入",
-            bodyMarkdownZHT: "多選（Set<UUID>）；批次操作（備份/匯出/合併/移到回收桶）；扁平資料夾匯入",
-            bodyMarkdownEN: "Multi-select (Set<UUID>); batch ops (backup/export/merge/move to trash); flat folder import",
-            bodyMarkdownJA: "複数選択（Set<UUID>）；一括操作（バックアップ/エクスポート/マージ/ゴミ箱へ）；フラットフォルダインポート"
+            bodyMarkdown: """
+【新增】
+• 可以一次选多首歌，然后一起备份、导出、合并，或移到回收站。也可以把一层文件夹里的歌导进来
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 可以一次選多首歌，然後一起備份、匯出、合併，或移到回收桶。也可以把一層資料夾裡的歌導進來
+""",
+            bodyMarkdownEN: """
+【New】
+• Several songs can be selected and then backed up, exported, merged, or moved to the trash together. A flat folder of songs can be imported
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 複数の曲を選んで、まとめてバックアップ、書き出し、結合、ゴミ箱へ移動できます。一段のフォルダから読み込むこともできます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 곡을 여러 개 고른 뒤 함께 백업, 내보내기, 합치기, 휴지통으로 옮길 수 있습니다. 한 층의 폴더에서 가져올 수도 있습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Se pueden elegir varias canciones y luego copiarlas, exportarlas, unirlas o moverlas a la papelera. También se importa una carpeta plana
+""",
         ),
         Entry(
             version: "v1.5.1",
             date: "2026-06-17",
             isLatest: false,
-            bodyMarkdown: "修复重复 key 导致的本地化表崩溃",
-            bodyMarkdownZHT: "修復重複 key 導致的本地化表崩潰",
-            bodyMarkdownEN: "Fixed: duplicate key crash in localization table",
-            bodyMarkdownJA: "ローカライズテーブルの重複キーによるクラッシュを修正"
+            bodyMarkdown: """
+【修复】
+• 修正了重复的词条把语言表弄崩溃的问题
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正了重複的詞條把語言表弄崩潰的問題
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed a crash caused by a repeated phrase in the language tables
+""",
+            bodyMarkdownJA: """
+【修正】
+• 言語表の重複した語句で落ちる問題を直しました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 언어 표의 중복된 문구 때문에 멈추던 문제를 고쳤습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió un cierre provocado por una frase repetida en las tablas de idioma
+""",
         ),
         Entry(
             version: "v1.5 Beta",
             date: "2026-06-17",
             isLatest: false,
-            bodyMarkdown: "文件夹系统 + 系统回收站（SongFolder isSystem + fetchTrashFolder）；删除走系统废纸篓；二次确认才能永久删除",
-            bodyMarkdownZHT: "資料夾系統 + 系統回收桶（SongFolder isSystem + fetchTrashFolder）；刪除走系統垃圾桶；二次確認才能永久刪除",
-            bodyMarkdownEN: "Folder system + system trash (SongFolder isSystem + fetchTrashFolder); deletes go through system trash; permanent delete requires double confirm",
-            bodyMarkdownJA: "フォルダシステム + システムゴミ箱（SongFolder isSystem + fetchTrashFolder）；削除はシステムゴミ箱経由；完全削除は 2 段階確認"
+            bodyMarkdown: """
+【新增】
+• 增加了文件夹和回收站。删除会先放进回收站，再确认一次才能彻底删除
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 增加了資料夾和回收桶。刪除會先放進回收桶，再確認一次才能徹底刪除
+""",
+            bodyMarkdownEN: """
+【New】
+• Folders and a trash were added. Delete moves a song to the trash first, and a second confirmation is required to remove it for good
+""",
+            bodyMarkdownJA: """
+【新機能】
+• フォルダとゴミ箱を追加しました。削除はまずゴミ箱へ入り、完全に消すにはもう一度確認します
+""",
+            bodyMarkdownKO: """
+【추가】
+• 폴더와 휴지통이 생겼습니다. 삭제는 먼저 휴지통으로 가고, 완전히 지우려면 한 번 더 확인합니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Llegaron las carpetas y la papelera. Borrar lleva primero a la papelera, y hace falta una segunda confirmación para eliminar del todo
+""",
         ),
         Entry(
             version: "v1.4 Beta",
             date: "2026-06-15",
             isLatest: false,
-            bodyMarkdown: "i18n（简中/繁中/英语/日语 4 语言）；删除警告开关；窗口最窄 1280",
-            bodyMarkdownZHT: "i18n（簡中/繁中/英語/日語 4 語系）；刪除警告開關；視窗最窄 1280",
-            bodyMarkdownEN: "i18n (4 languages: Simplified / Traditional Chinese / English / 日本語); delete warning toggle; window min width 1280",
-            bodyMarkdownJA: "i18n（簡体中文 / 繁体中文 / English / 日本語の 4 言語）；削除警告スイッチ；ウィンドウ最小幅 1280"
+            bodyMarkdown: """
+【新增】
+• 界面可以在简体中文、繁体中文、英语和日语之间切换。删除前可以要求确认。窗口最窄大约能到常见的宽屏宽度
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 介面可以在簡體中文、繁體中文、英語和日語之間切換。刪除前可以要求確認。視窗最窄大約能到常見的寬螢幕寬度
+""",
+            bodyMarkdownEN: """
+【New】
+• The interface can switch among simplified Chinese, traditional Chinese, English, and Japanese. Delete can ask for confirmation. The window has a sensible minimum width
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 表示は簡体字中国語、繁体字中国語、英語、日本語を切り替えられます。削除前に確認を求められます。ウィンドウには無理のない最小幅があります
+""",
+            bodyMarkdownKO: """
+【추가】
+• 화면 언어를 간체 중국어, 번체 중국어, 영어, 일본어 사이에서 바꿀 수 있습니다. 삭제 전에 확인을 물을 수 있습니다. 창에는 적당한 최소 너비가 있습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• La interfaz puede usar chino simplificado, chino tradicional, inglés y japonés. El borrado puede pedir confirmación. La ventana tiene un ancho mínimo razonable
+""",
         ),
         Entry(
             version: "v1.3 Beta",
             date: "2026-06-14",
             isLatest: false,
-            bodyMarkdown: "灵感与设定栏目；段落笔记展开面板；自动注音 UI 整合",
-            bodyMarkdownZHT: "靈感與設定欄目；段落筆記展開面板；自動注音 UI 整合",
-            bodyMarkdownEN: "Ideas & Settings panel; section notes expand panel; auto-furigana UI integrated",
-            bodyMarkdownJA: "インスピレーション・設定欄目；セクションノート展開パネル；自動ふりがな UI 統合"
+            bodyMarkdown: """
+【新增】
+• 增加了灵感与设定。段落笔记可以展开。自动注音的操作收进了同一处
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 增加了靈感與設定。段落筆記可以展開。自動注音的操作收進了同一處
+""",
+            bodyMarkdownEN: """
+【New】
+• Ideas and settings were added. Section notes can expand. Automatic reading marks live in one place
+""",
+            bodyMarkdownJA: """
+【新機能】
+• アイデアと設定が増えました。セクションのメモは展開できます。自動の読みがなは一か所にまとめました
+""",
+            bodyMarkdownKO: """
+【추가】
+• 아이디어와 설정이 생겼습니다. 섹션 메모를 펼칠 수 있습니다. 자동 읽기 표기는 한곳으로 모았습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Llegaron las ideas y la ambientación. Las notas de la sección se despliegan. La lectura automática quedó reunida
+""",
         ),
         Entry(
             version: "v1.2 Beta",
             date: "2026-06-13",
             isLatest: false,
-            bodyMarkdown: "歌曲语言多选合并（简/繁 → 中文）；手动注音 chip 列表",
-            bodyMarkdownZHT: "歌曲語言多選合併（簡/繁 → 中文）；手動注音 chip 列表",
-            bodyMarkdownEN: "Song language multi-select merged (Simplified / Traditional → Chinese); manual furigana chip list",
-            bodyMarkdownJA: "楽曲言語の複数選択を統合（簡体/繁体 → 中文）；手動ふりがなチップ一覧"
+            bodyMarkdown: """
+【改动】
+• 歌曲语言里的简体和繁体合并成中文。可以手动给字加上读音
+""",
+            bodyMarkdownZHT: """
+【改動】
+• 歌曲語言裡的簡體和繁體合併成中文。可以手動給字加上讀音
+""",
+            bodyMarkdownEN: """
+【Changed】
+• Simplified and traditional Chinese in a song's languages were merged into Chinese. Readings can be added by hand
+""",
+            bodyMarkdownJA: """
+【変更】
+• 曲の言語では簡体字と繁体字を中国語にまとめました。読みは手でも付けられます
+""",
+            bodyMarkdownKO: """
+【변경】
+• 곡 언어에서 간체와 번체를 중국어로 합쳤습니다. 읽기는 손으로도 달 수 있습니다
+""",
+            bodyMarkdownES: """
+【Cambios】
+• El chino simplificado y el tradicional del idioma de la canción se unieron en chino. Las lecturas se pueden añadir a mano
+""",
         ),
         Entry(
             version: "v1.1",
             date: "2026-06-12",
             isLatest: false,
-            bodyMarkdown: "Schema 修复（languagesString 替代 language）",
-            bodyMarkdownZHT: "Schema 修復（languagesString 替代 language）",
-            bodyMarkdownEN: "Schema fix (languagesString replaces language)",
-            bodyMarkdownJA: "Schema 修正（languagesString が language を置換）"
+            bodyMarkdown: """
+【修复】
+• 修正了歌曲语言的保存方式，旧数据换到新的存法后才能继续打开
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正了歌曲語言的儲存方式，舊資料換到新的存法後才能繼續打開
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed how a song's languages are stored, so older data can be opened with the new layout
+""",
+            bodyMarkdownJA: """
+【修正】
+• 曲の言語の保存方法を直し、古いデータを新しい形で開けるようにしました
+""",
+            bodyMarkdownKO: """
+【수정】
+• 곡 언어를 저장하는 방식을 고쳐, 예전 데이터를 새 형태로 열 수 있습니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió cómo se guardan los idiomas de la canción, para que los datos antiguos se abran con la forma nueva
+""",
         ),
         Entry(
             version: "v1.0",
             date: "2026-06-10",
             isLatest: false,
-            bodyMarkdown: "首次发布：SwiftUI + SwiftData 原生 macOS 应用；Apple Silicon ARM64；12 种段落类型预设 + 自定义；日语假名自动注音",
-            bodyMarkdownZHT: "首次發布：SwiftUI + SwiftData 原生 macOS 應用；Apple Silicon ARM64；12 種段落類型預設 + 自訂；日語假名自動注音",
-            bodyMarkdownEN: "First release: SwiftUI + SwiftData native macOS app; Apple Silicon ARM64; 12 section-type presets + custom; automatic Japanese furigana",
-            bodyMarkdownJA: "初版リリース：SwiftUI + SwiftData ネイティブ macOS アプリ；Apple Silicon ARM64；セクションタイプ 12 種プリセット + カスタム；日本語ふりがな自動付与"
+            bodyMarkdown: """
+【新增】
+• 第一次发布。这是给苹果芯片准备的歌词写作工具，带十二种常见段落，也可以自己加，并能给日语自动标读音
+""",
+            bodyMarkdownZHT: """
+【新增】
+• 第一次發布。這是給蘋果晶片準備的歌詞寫作工具，帶十二種常見段落，也可以自己加，並能給日語自動標讀音
+""",
+            bodyMarkdownEN: """
+【New】
+• First release. A lyric-writing tool for Apple silicon, with twelve common section types plus a custom one, and automatic Japanese readings
+""",
+            bodyMarkdownJA: """
+【新機能】
+• 最初の公開です。Apple シリコン向けの歌詞ツールで、よく使うセクションが十二種あり、自分でも追加でき、日本語の読みを自動で付けられます
+""",
+            bodyMarkdownKO: """
+【추가】
+• 첫 공개입니다. 애플 실리콘용 가사 도구로, 흔한 섹션 열두 가지와 직접 추가가 있고, 일본어 읽기를 자동으로 달 수 있습니다
+""",
+            bodyMarkdownES: """
+【Nuevo】
+• Primera versión. Una herramienta de letras para Apple silicon, con doce tipos habituales de sección más uno propio, y lecturas japonesas automáticas
+""",
         ),
     ]
 }

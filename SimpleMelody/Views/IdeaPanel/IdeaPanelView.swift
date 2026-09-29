@@ -47,7 +47,7 @@ struct IdeaPanelView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(L("灵感与设定"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(14, weight: .semibold)
                     Text("\(song.orderedIdeas.count) \(L("条记录"))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -153,7 +153,7 @@ struct IdeaPanelView: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             Image(systemName: "lightbulb.slash")
-                .font(.system(size: 36))
+                .appFont(36)
                 .foregroundStyle(.tertiary)
             Text(L("还没有灵感或设定"))
                 .font(.callout)
@@ -211,7 +211,7 @@ private struct IdeaCard: View {
             HStack(spacing: 6) {
                 Image(systemName: type.symbol)
                     .foregroundStyle(type.color)
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(12, weight: .semibold)
                 Text(type.localizedName)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(type.color)

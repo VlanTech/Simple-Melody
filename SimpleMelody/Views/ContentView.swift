@@ -5,13 +5,6 @@
 import SwiftUI
 import SwiftData
 
-/// 右栏模式（互斥）
-enum RightPanelMode: String, Hashable, Codable {
-    case off
-    case idea
-    case preview
-}
-
 /// v1.7.9 Gamma+: 切换歌词动画方向枚举（保留兼容）
 /// v1.7.9 Delta+: 实际动画统一强制从右往左（不再根据索引算方向，避免快速切换下的反向 bug）
 enum SongTransitionDirection: Equatable {
@@ -49,11 +42,10 @@ struct ContentView: View {
         return selectedSongIDs.first(where: songIDSet.contains)
     }
 
-    /// v1.7: 右栏模式（互斥：off / idea / preview）
+    /// 右栏模式（互斥：off / idea / preview / settings）
     @State private var rightPanelMode: RightPanelMode = .idea
 
     @State private var showSectionPanel: Bool = true
-    @State private var showSettings: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     /// v1.7: 当前激活段落（编辑区 / 预览区共享）
@@ -167,16 +159,18 @@ struct ContentView: View {
         //   注意：不用 columnVisibility 切换（.doubleColumn 会隐藏 sidebar），只控 detail column 宽度
         // - 快速切换防错：每次 rightPanelMode 变化时 body 重新求值，transition modifier 重算，下次 add/remove 用新 transition
         ZStack {
-            if let id = editingSongID, let song = songs.first(where: { $0.id == id }) {
-                switch rightPanelMode {
-                case .off:
-                    Color.clear
-                        .transition(.opacity)
-                case .idea:
+            switch rightPanelMode {
+            case .off:
+                Color.clear
+                    .transition(.opacity)
+            case .idea:
+                if let id = editingSongID, let song = songs.first(where: { $0.id == id }) {
                     IdeaPanelView(song: song)
                         .id("idea")
                         .transition(rightPanelTransition(target: .idea))
-                case .preview:
+                }
+            case .preview:
+                if let id = editingSongID, let song = songs.first(where: { $0.id == id }) {
                     LyricsPreviewView(
                         song: song,
                         activeSectionID: activeSectionID,
@@ -190,47 +184,41 @@ struct ContentView: View {
                     .id("preview")
                     .transition(rightPanelTransition(target: .preview))
                 }
-            } else {
-                Color.clear
-                    .transition(.opacity)
+            case .settings:
+                SettingsView()
+                    .environmentObject(themeManager)
+                    .id("settings")
+                    .transition(rightPanelTransition(target: .settings))
             }
         }
-        // v1.7.9 Delta+: 动态控制 detail column 宽度（off → 0，让歌词编辑区占满；idea/preview → 320-500）
         .navigationSplitViewColumnWidth(
-            min: rightPanelMode == .off ? 0 : 320,
-            ideal: rightPanelMode == .off ? 0 : 380,
-            max: rightPanelMode == .off ? 0 : 500
+            min: RightColumnMetrics.layout(for: rightPanelMode).minWidth,
+            ideal: RightColumnMetrics.layout(for: rightPanelMode).idealWidth,
+            max: RightColumnMetrics.layout(for: rightPanelMode).maxWidth
         )
         // v1.7.9 Delta+: 右栏切换动画（spring，0.35s）
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: rightPanelMode)
     }
 
-    /// v1.7.9 Delta+: 根据目标 panel 在按钮栏的位置生成对应方向的 transition
-    /// 灵感按钮在左（trailing）→ idea 从 trailing 划入
-    /// 预览按钮在右（leading）→ preview 从 leading 划入
+    /// 进入边来自 RightColumnMetrics。move + opacity，spring 仍是右栏已有的那一个。
     private func rightPanelTransition(target: RightPanelMode) -> AnyTransition {
-        // SwiftUI .move(edge:) 的语义：
-        //   .leading = LTR 语言下是左边缘 → 从左边缘移入 = 从左划入
-        //   .trailing = LTR 语言下是右边缘 → 从右边缘移入 = 从右划入
-        // 按钮在 toolbar 的位置决定视图进入方向：
-        //   灵感按钮在左 → 灵感从左划入（leading）
-        //   预览按钮在右 → 预览从右划入（trailing）
-        switch target {
-        case .idea:
-            // 灵感从左划入，离开时向右滑出
-            return .asymmetric(
-                insertion: .move(edge: .leading).combined(with: .opacity),
-                removal: .move(edge: .trailing).combined(with: .opacity)
-            )
-        case .preview:
-            // 预览从右划入，离开时向左滑出
-            return .asymmetric(
-                insertion: .move(edge: .trailing).combined(with: .opacity),
-                removal: .move(edge: .leading).combined(with: .opacity)
-            )
-        case .off:
-            return .opacity
+        let layout = RightColumnMetrics.layout(for: target)
+        guard layout.enterEdge != .none else { return .opacity }
+        return .asymmetric(
+            insertion: moveFade(layout.enterEdge),
+            removal: moveFade(layout.leaveEdge)
+        )
+    }
+
+    private func moveFade(_ edge: RightColumnEnterEdge) -> AnyTransition {
+        let side: Edge
+        switch edge {
+        case .leading: side = .leading
+        case .trailing: side = .trailing
+        case .bottom: side = .bottom
+        case .none: return .opacity
         }
+        return .move(edge: side).combined(with: .opacity)
     }
 
     @ToolbarContentBuilder
@@ -248,17 +236,10 @@ struct ContentView: View {
             }
             .help(rightPanelMode == .preview ? L("关闭歌词预览") : L("显示歌词预览"))
 
-            // 设置
-            Button {
-                showSettings = true
-            } label: {
+            Toggle(isOn: settingsToggleBinding) {
                 Label(L("设置"), systemImage: "gearshape")
             }
             .help(L("设置"))
-            .popover(isPresented: $showSettings, arrowEdge: .bottom) {
-                SettingsView()
-                    .environmentObject(themeManager)
-            }
         }
     }
 
@@ -268,6 +249,16 @@ struct ContentView: View {
             get: { rightPanelMode == .idea },
             set: { newValue in
                 rightPanelMode = newValue ? .idea : .off
+            }
+        )
+    }
+
+    /// 设置 toggle：开时设 .settings，关时切到 .off
+    private var settingsToggleBinding: Binding<Bool> {
+        Binding(
+            get: { rightPanelMode == .settings },
+            set: { newValue in
+                rightPanelMode = newValue ? .settings : .off
             }
         )
     }
@@ -311,7 +302,7 @@ private struct EmptySongView: View {
                 .shadow(color: .accentColor.opacity(0.3), radius: 12)
 
             Text("Simple Melody")
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .appFont(28, weight: .semibold, design: .rounded)
 
             Text(L("选择左侧的歌曲开始创作，或新建一首新歌。"))
                 .font(.body)

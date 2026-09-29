@@ -4,11 +4,13 @@
 
 import SwiftUI
 import SwiftData
+import AppKit
 
 @main
 struct SimpleMelodyApp: App {
     @StateObject private var themeManager = ThemeManager()
     @ObservedObject private var localization = LocalizationManager.shared
+    @ObservedObject private var appSettings = AppSettings.shared
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -95,9 +97,18 @@ struct SimpleMelodyApp: App {
                 .environmentObject(themeManager)
                 .preferredColorScheme(themeManager.preferredColorScheme)
                 .environment(\.locale, Locale(identifier: localization.language.rawValue))
+                .appTypography(CGFloat(appSettings.fontScale))
                 .id(localization.language) // 语言变化时重置整个 view 树
-                .frame(minWidth: 1280, minHeight: 680)
+                .frame(
+                    minWidth: AppFontMetrics.mainMinWidth,
+                    minHeight: AppFontMetrics.mainMinHeight
+                )
+                .background(FillVisibleScreenOnOpen())
         }
+        .defaultSize(
+            width: mainLaunchSize.width,
+            height: mainLaunchSize.height
+        )
         .modelContainer(sharedModelContainer)
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
@@ -109,6 +120,7 @@ struct SimpleMelodyApp: App {
         Window("更新日志", id: "changelog") {
             ChangelogWindow()
                 .environment(\.locale, Locale(identifier: localization.language.rawValue))
+                .appTypography(CGFloat(appSettings.fontScale))
                 .id(localization.language)
         }
         .defaultSize(width: 640, height: 560)
@@ -118,6 +130,7 @@ struct SimpleMelodyApp: App {
         Window("使用指南", id: "usage") {
             UsageGuideWindow()
                 .environment(\.locale, Locale(identifier: localization.language.rawValue))
+                .appTypography(CGFloat(appSettings.fontScale))
                 .id(localization.language)
         }
         .defaultSize(width: 640, height: 560)
@@ -127,10 +140,42 @@ struct SimpleMelodyApp: App {
         Window("技能炼成", id: "skill-export") {
             SkillExportWindow()
                 .environment(\.locale, Locale(identifier: localization.language.rawValue))
+                .appTypography(CGFloat(appSettings.fontScale))
                 .id(localization.language)
         }
         .defaultSize(width: 800, height: 780)
         .windowResizability(.contentSize)
+    }
+
+    private var mainLaunchSize: CGSize {
+        MainWindowLaunch.frame(fitting: NSScreen.main?.visibleFrame ?? .zero).size
+    }
+}
+
+/// 主窗口打开时铺满当前屏幕可用区域一次，之后仍可拖改大小。
+private struct FillVisibleScreenOnOpen: NSViewRepresentable {
+    private static var filledWindowNumbers = Set<Int>()
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            let number = window.windowNumber
+            guard !Self.filledWindowNumbers.contains(number) else { return }
+            let screen = window.screen ?? NSScreen.main
+            guard let screen else { return }
+            let target = MainWindowLaunch.frame(fitting: screen.visibleFrame)
+            Self.filledWindowNumbers.insert(number)
+            if abs(window.frame.width - target.width) > 2
+                || abs(window.frame.height - target.height) > 2
+                || abs(window.frame.minX - target.minX) > 2
+                || abs(window.frame.minY - target.minY) > 2 {
+                window.setFrame(target, display: true, animate: false)
+            }
+        }
     }
 }
 

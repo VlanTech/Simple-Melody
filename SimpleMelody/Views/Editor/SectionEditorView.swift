@@ -28,7 +28,9 @@ struct SectionEditorView: View {
     /// v1.7.9 BugStable: matchedGeometryEffect 用 namespace 做伸缩过渡
     @Namespace private var animNamespace
 
-    @State private var sidePanel: SectionSidePanel = .none
+    @Binding var sidePanel: SectionSidePanel
+    /// 笔记 / 译文 / 折叠。Command 是否按住由调用方读取。
+    let onHeaderControl: (SectionHeaderControl) -> Void
     @State private var showTypePicker: Bool = false
     /// v1.7.1: 闪烁状态（跳转后临时高亮，800ms 后自动消失）
     @State private var isFlashing: Bool = false
@@ -152,7 +154,7 @@ struct SectionEditorView: View {
                     .frame(width: 28, height: 28)
                 Image(systemName: preset?.symbol ?? "text.alignleft")
                     .foregroundStyle(preset?.color ?? .primary)
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(13, weight: .semibold)
             }
             .frame(width: 28, height: 28)
 
@@ -162,7 +164,7 @@ struct SectionEditorView: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(section.displayName)
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(14, weight: .semibold)
                         .foregroundStyle(preset?.color ?? .primary)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
@@ -206,7 +208,7 @@ struct SectionEditorView: View {
                     .imageScale(.small)
                     .foregroundStyle(.secondary)
                 Text(section.marker)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .appFont(11, weight: .medium, design: .monospaced)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
@@ -236,15 +238,13 @@ struct SectionEditorView: View {
 
                 // 译文开关（在笔记左侧；与笔记互斥展开，同一套伸缩动画）
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        sidePanel = SectionSidePanel.toggling(sidePanel, targeting: .translation)
-                    }
+                    onHeaderControl(.translation)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "character.book.closed")
                             .imageScale(.small)
                         Text(L("译文"))
-                            .font(.system(size: 11, weight: .medium))
+                            .appFont(11, weight: .medium)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -265,17 +265,13 @@ struct SectionEditorView: View {
 
                 // 段落笔记开关（带文字 + 图标）
                 Button {
-                    // v1.7.9 Test: 用 withAnimation 触发展开/收起动画（v1.7.8 Delta 风格）
-                    // v1.7.8 Delta 二进制反汇编：sectionHeader 闭包末尾 `_yXEfU_` 后缀 = withAnimation 调用
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        sidePanel = SectionSidePanel.toggling(sidePanel, targeting: .notes)
-                    }
+                    onHeaderControl(.notes)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "note.text")
                             .imageScale(.small)
                         Text(L("笔记"))
-                            .font(.system(size: 11, weight: .medium))
+                            .appFont(11, weight: .medium)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -296,16 +292,13 @@ struct SectionEditorView: View {
 
                 // 折叠
                 Button {
-                    // v1.7.9 Test: 用 withAnimation 触发展开/收起动画（v1.7.8 Delta 风格）
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        section.isCollapsed.toggle()
-                    }
+                    onHeaderControl(.collapse)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: section.isCollapsed ? "chevron.down" : "chevron.up")
                             .imageScale(.small)
                         Text(section.isCollapsed ? L("展开") : L("折叠"))
-                            .font(.system(size: 11, weight: .medium))
+                            .appFont(11, weight: .medium)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -374,7 +367,7 @@ struct SectionEditorView: View {
                     .imageScale(.small)
                     .foregroundStyle(.primary)
                 Text(L("段落笔记"))
-                    .font(.system(size: 12, weight: .medium))
+                    .appFont(12, weight: .medium)
                     .foregroundStyle(.primary)
             }
             .fixedSize()
@@ -408,7 +401,7 @@ struct SectionEditorView: View {
                     .imageScale(.small)
                     .foregroundStyle(.primary)
                 Text(L("段落译文"))
-                    .font(.system(size: 12, weight: .medium))
+                    .appFont(12, weight: .medium)
                     .foregroundStyle(.primary)
             }
             .fixedSize()

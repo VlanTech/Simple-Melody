@@ -5,8 +5,8 @@
 import Foundation
 
 enum AppReleaseMath {
-    static let displayVersion = "v1.8.0"
-    static let marketingVersion = "1.8.0"
+    static let displayVersion = "v1.8.2"
+    static let marketingVersion = "1.8.2"
     static let githubLatestURL = "https://api.github.com/repos/VlanTech/Simple-Melody/releases/latest"
     static let downloadPageURL = "https://github.com/VlanTech/Simple-Melody"
 

@@ -29,10 +29,23 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// 界面字号比例。1 为当前默认，滑块范围见 AppFontMetrics。
+    @Published var fontScale: Double {
+        didSet {
+            let clamped = Double(AppFontMetrics.clamp(CGFloat(fontScale)))
+            if abs(fontScale - clamped) > 0.0001 {
+                fontScale = clamped
+                return
+            }
+            UserDefaults.standard.set(clamped, forKey: Key.fontScale)
+        }
+    }
+
     private enum Key {
         static let confirmDelete = "app.settings.confirmBeforeDelete"
         static let autoCheckUpdates = "app.settings.autoCheckUpdates"
         static let previewCaption = "app.settings.previewCaptionSource"
+        static let fontScale = "app.settings.fontScale"
     }
 
     private init() {
@@ -52,6 +65,11 @@ final class AppSettings: ObservableObject {
             self.previewCaptionSource = source
         } else {
             self.previewCaptionSource = .notes
+        }
+        if UserDefaults.standard.object(forKey: Key.fontScale) == nil {
+            self.fontScale = Double(AppFontMetrics.defaultScale)
+        } else {
+            self.fontScale = Double(AppFontMetrics.clamp(CGFloat(UserDefaults.standard.double(forKey: Key.fontScale))))
         }
     }
 }

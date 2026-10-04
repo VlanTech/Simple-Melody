@@ -102,11 +102,30 @@ struct SectionLyricSnapshot: Equatable {
     var body: String
     var translation: String
     var notes: String
+    var ruby: String = ""
+}
+
+/// What a `.smelody.txt` write includes. Song Info is always written so the file can import.
+struct SongExportOptions: Equatable {
+    var lyrics: Bool = true
+    var translation: Bool = true
+    var ruby: Bool = true
+    var notes: Bool = true
+    var ideas: Bool = true
+
+    static let all = SongExportOptions()
+
+    var includesLyricsSection: Bool { lyrics || translation || ruby || notes }
+    /// Readings attach to lyrics; a ruby-only file cannot round-trip.
+    var writesLyricBody: Bool { lyrics || ruby }
+    var includesAnything: Bool { includesLyricsSection || ideas }
 }
 
 enum SectionLyricCodec {
     /// Stable export label so files round-trip regardless of UI language.
     static let translationExportLabel = "Translation"
+    /// Same pair format as Imagine: one `汉字｜读音` line per reading.
+    static let rubyExportLabel = "Ruby"
 
     static func isTranslationMarker(_ trimmed: String) -> Bool {
         let key = markerKey(trimmed).lowercased()
@@ -117,6 +136,26 @@ enum SectionLyricCodec {
         default:
             return false
         }
+    }
+
+    static func isRubyMarker(_ trimmed: String) -> Bool {
+        let key = markerKey(trimmed).lowercased()
+        switch key {
+        case "ruby", "furigana", "注音", "ふりがな", "振り仮名", "후리가나":
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func rubyExportText(_ pairs: [(original: String, phonetic: String)]) -> String {
+        pairs.compactMap { original, phonetic in
+            let base = original.trimmingCharacters(in: .whitespacesAndNewlines)
+            let reading = phonetic.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !base.isEmpty, !reading.isEmpty else { return nil }
+            return "\(base)｜\(reading)"
+        }
+        .joined(separator: "\n")
     }
 
     static func isNotesMarker(_ trimmed: String, extraLabels: [String] = []) -> Bool {
@@ -147,27 +186,40 @@ enum SectionLyricCodec {
         body: String,
         translation: String,
         notes: String,
-        notesLabel: String
+        notesLabel: String,
+        ruby: String = "",
+        options: SongExportOptions = .all
     ) -> [String] {
         var lines: [String] = [marker]
-        if body.isEmpty {
-            lines.append("  ")
-        } else {
-            lines.append(contentsOf: body.components(separatedBy: "\n"))
+        if options.writesLyricBody {
+            if body.isEmpty {
+                lines.append("  ")
+            } else {
+                lines.append(contentsOf: body.components(separatedBy: "\n"))
+            }
         }
-        lines += indentedBlock(label: translationExportLabel, content: translation)
-        lines += indentedBlock(label: notesLabel, content: notes)
+        if options.ruby {
+            lines += indentedBlock(label: rubyExportLabel, content: ruby)
+        }
+        if options.translation {
+            lines += indentedBlock(label: translationExportLabel, content: translation)
+        }
+        if options.notes {
+            lines += indentedBlock(label: notesLabel, content: notes)
+        }
         return lines
     }
 
-    /// Parse 【Lyrics】 lines (markers + body + optional Translation / notes blocks).
+    /// Parse 【Lyrics】 lines (markers + body + optional Ruby / Translation / notes blocks).
+    /// Files without a Ruby block stay valid; ruby is empty.
     static func parseLyrics(_ lines: [String], extraNotesLabels: [String] = []) -> [SectionLyricSnapshot] {
         var snapshots: [SectionLyricSnapshot] = []
         var marker: String?
         var body: [String] = []
         var translation: [String] = []
         var notes: [String] = []
-        enum Block { case body, translation, notes }
+        var ruby: [String] = []
+        enum Block { case body, translation, notes, ruby }
         var block: Block = .body
 
         func flush() {
@@ -176,7 +228,8 @@ enum SectionLyricCodec {
                 marker: marker,
                 body: body.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
                 translation: translation.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
-                notes: notes.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                notes: notes.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
+                ruby: ruby.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
             ))
         }
 
@@ -185,6 +238,7 @@ enum SectionLyricCodec {
             body = []
             translation = []
             notes = []
+            ruby = []
             block = .body
         }
 
@@ -202,6 +256,10 @@ enum SectionLyricCodec {
                 marker = trimmed
                 continue
             }
+            if isRubyMarker(trimmed) {
+                block = .ruby
+                continue
+            }
             if isTranslationMarker(trimmed) {
                 block = .translation
                 continue
@@ -215,6 +273,8 @@ enum SectionLyricCodec {
                 translation.append(unindent(trimmed))
             case .notes:
                 notes.append(unindent(trimmed))
+            case .ruby:
+                ruby.append(unindent(trimmed))
             case .body:
                 body.append(line)
             }

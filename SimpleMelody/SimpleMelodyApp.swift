@@ -198,11 +198,6 @@ struct SongCommands: Commands {
         }
         CommandGroup(after: .pasteboard) {
             Divider()
-            Button(L("自动标注日语假名")) {
-                NotificationCenter.default.post(name: .autoFuriganaRequested, object: nil)
-            }
-            .keyboardShortcut("k", modifiers: [.command, .shift])
-            Divider()
             // v1.7.5 Gamma: ⌘D 触发删除多选歌曲
             Button(L("移到回收站")) {
                 NotificationCenter.default.post(name: .deleteSelectedSongsRequested, object: nil)
@@ -220,7 +215,6 @@ struct SongCommands: Commands {
 extension Notification.Name {
     static let newSongRequested = Notification.Name("sm.newSongRequested")
     static let newSectionRequested = Notification.Name("sm.newSectionRequested")
-    static let autoFuriganaRequested = Notification.Name("sm.autoFuriganaRequested")
     static let showHelpRequested = Notification.Name("sm.showHelpRequested")
     static let deleteSelectedSongsRequested = Notification.Name("sm.deleteSelectedSongsRequested")
 }

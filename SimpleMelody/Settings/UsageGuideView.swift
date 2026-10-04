@@ -146,7 +146,6 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 **快捷键**：
 - `⌘N` 新建歌曲
 - `⇧⌘N` 新建段落
-- `⇧⌘K` 自动标注日语假名
 - `⌘D` 把选中歌曲移到回收站
 - `⌘W` 关闭当前窗口
 - `Command-Esc` 取消正在进行的 Imagine
@@ -161,7 +160,7 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 **中间栏（编辑区）**：
 - 歌曲元信息（标题 / 艺术家 / 语言 / BPM / 调式 / 节拍）
 - 段落列表：每个段落可设置类型（Verse / Chorus / ...）
-- 段落正文直接写歌词；注音 chip 高亮需要读音的字
+- 段落正文直接写歌词；有注音时假名显示在汉字上方
 - 导出按钮左边是整首歌的 Imagine
 
 **右侧栏（灵感 / 歌词预览 / 设置）**：
@@ -193,10 +192,10 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
         Section(icon: "character.bubble.fill", title: "歌词编辑", bodyMarkdown: """
 **段落类型**：Intro / Verse / Chorus / Bridge / Outro / 自定义。每种类型有独立颜色、默认 tag 和图标。
 
-**注音**：点击段落正文下方的「添加读音」
-- 起始位置 + 长度（自动预览原文）
-- 读音文本
-- 「自动注音」：日语歌曲一键生成假名
+**注音**：假名显示在汉字上方，歌词本身仍是纯文本。
+- 点汉字改歌词，点上方假名改注音
+- 没有注音的字上方不显示假名
+- 导出时注音写在 `Ruby:` 块里，一行 `汉字｜读音`
 
 **笔记和译文**：点段落上的「笔记」或「译文」。两者不能同时展开。按住 Command 再点笔记、译文或折叠，会对整首歌做同样的打开或收起。
 
@@ -215,7 +214,7 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 - **Imagine**（导出按钮左边）：处理整首歌
 - **段落Imagine**（歌词段落向右滑，左边蓝色按钮）：只处理这一段
 
-点开后选 **翻译** 或 **创意**。注音即将推出。
+点开后选 **翻译**、**创意** 或 **注音**。
 
 **翻译**：
 - 选择目标语言，下次会记住
@@ -251,9 +250,10 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 """),
         Section(icon: "square.and.arrow.up", title: "导入 / 导出", bodyMarkdown: """
 **导出**：工具栏点「导出」按钮
-- 单首歌曲 → `.smelody.txt`（含元信息、歌词、读音、译文）
-- 文件夹 → 整文件夹批量导出
-- 多选歌曲 → 批量导出
+- 「导出为文本文件（含全部信息）」→ 完整 `.smelody.txt`（元信息、歌词、注音、译文、笔记、灵感）
+- 「按内容导出」：勾选歌词正文、翻译、注音、笔记、灵感设定后再导出。勾过的内容会写进文件，还能再导入。只勾注音时仍会带上歌词正文，否则读音对不上。未勾选的字段导入后为空，不会被编造
+- 注音在文件里是每段下面的 `Ruby:` 块，一行一对 `汉字｜读音`。没有该块的旧文件仍能导入
+- 文件夹 / 多选歌曲 → 批量导出（含全部信息）
 
 **导入**：工具栏点「导入」按钮
 - 支持 `.smelody.txt`
@@ -303,7 +303,6 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 **快捷鍵**：
 - `⌘N` 新建歌曲
 - `⇧⌘N` 新建段落
-- `⇧⌘K` 自動標註日語假名
 - `⌘D` 把選中歌曲移到回收桶
 - `⌘W` 關閉當前視窗
 - `Command-Esc` 取消正在進行的 Imagine
@@ -318,7 +317,7 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 **中間欄（編輯區）**：
 - 歌曲元資訊（標題 / 藝人 / 語言 / BPM / 調式 / 節拍）
 - 段落列表：每個段落可設定類型（Verse / Chorus / ...）
-- 段落內文直接寫歌詞；注音 chip 標亮需要讀音的字
+- 段落內文直接寫歌詞；有注音時假名顯示在漢字上方
 - 匯出按鈕左邊是整首歌的 Imagine
 
 **右側欄（靈感 / 歌詞預覽 / 設定）**：
@@ -350,10 +349,10 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
         Section(icon: "character.bubble.fill", title: "歌詞編輯", bodyMarkdown: """
 **段落類型**：Intro / Verse / Chorus / Bridge / Outro / 自訂。每種類型有獨立顏色、預設 tag 和圖示。
 
-**注音**：點擊段落內文下方的「新增讀音」
-- 起始位置 + 長度（自動預覽原文）
-- 讀音文字
-- 「自動注音」：日語歌曲一鍵產生假名
+**注音**：假名顯示在漢字上方，歌詞本身仍是純文字。
+- 點漢字改歌詞，點上方假名改注音
+- 沒有注音的字上方不顯示假名
+- 匯出時注音寫在 `Ruby:` 塊裡，一行 `漢字｜讀音`
 
 **筆記和譯文**：點段落上的「筆記」或「譯文」。兩者不能同時展開。按住 Command 再點筆記、譯文或折疊，會對整首歌做同樣的打開或收起。
 
@@ -372,7 +371,7 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 - **Imagine**（匯出按鈕左邊）：處理整首歌
 - **段落Imagine**（歌詞段落向右滑，左邊藍色按鈕）：只處理這一段
 
-點開後選 **翻譯** 或 **創意**。注音即將推出。
+點開後選 **翻譯**、**創意** 或 **注音**。
 
 **翻譯**：
 - 選擇目標語言，下次會記住
@@ -408,9 +407,10 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 """),
         Section(icon: "square.and.arrow.up", title: "匯入 / 匯出", bodyMarkdown: """
 **匯出**：工具列點「匯出」按鈕
-- 單首歌曲 → `.smelody.txt`（含元資訊、歌詞、讀音、譯文）
-- 資料夾 → 整資料夾批次匯出
-- 多選歌曲 → 批次匯出
+- 「匯出為文本檔（含全部資訊）」→ 完整 `.smelody.txt`（元資訊、歌詞、注音、譯文、筆記、靈感）
+- 「按內容匯出」：勾選歌詞正文、翻譯、注音、筆記、靈感設定後再匯出。勾過的內容會寫進檔案，還能再匯入。只勾注音時仍會帶上歌詞正文，否則讀音對不上。未勾選的欄位匯入後為空，不會被編造
+- 注音在檔案裡是每段下面的 `Ruby:` 塊，一行一對 `漢字｜讀音`。沒有該塊的舊檔仍能匯入
+- 資料夾 / 多選歌曲 → 批次匯出（含全部資訊）
 
 **匯入**：工具列點「匯入」按鈕
 - 支援 `.smelody.txt`
@@ -453,14 +453,13 @@ Simple Melody is a native macOS lyric-writing app. The main window fills the scr
 **Basic workflow**:
 1. Click `+ New Song` in the toolbar (or right-click in the sidebar)
 2. Add sections (Verse / Chorus / Bridge / ...) in the middle pane
-3. Write lyrics; add pronunciation chips or open translation
+3. Write lyrics; furigana sits above kanji, or open translation
 4. Use the right pane "Ideas" for creative background
 5. Export to `.smelody.txt` when done
 
 **Keyboard shortcuts**:
 - `⌘N` new song
 - `⇧⌘N` new section
-- `⇧⌘K` auto-annotate Japanese furigana
 - `⌘D` move selected songs to Trash
 - `⌘W` close current window
 - `Command-Esc` cancel an in-flight Imagine
@@ -475,7 +474,7 @@ Simple Melody is a native macOS lyric-writing app. The main window fills the scr
 **Middle (Editor)**:
 - Song metadata (title / artist / language / BPM / key / beat)
 - Section list with types (Verse / Chorus / ...)
-- Lyrics editor and pronunciation chips
+- Lyrics editor; furigana sits above the kanji when present
 - Imagine for the whole song sits to the left of Export
 
 **Right (Ideas / Lyrics Preview / Settings)**:
@@ -507,10 +506,10 @@ Simple Melody is a native macOS lyric-writing app. The main window fills the scr
         Section(icon: "character.bubble.fill", title: "Lyric Editing", bodyMarkdown: """
 **Section types**: Intro / Verse / Chorus / Bridge / Outro / Custom. Each type has its own color, default tag, and icon.
 
-**Pronunciation**: click "Add Reading" below the text editor
-- Start position + length (auto-preview source text)
-- Phonetic text
-- "Auto Furigana" for Japanese songs
+**Pronunciation**: kana sits above the kanji; the lyric text stays plain.
+- Click the kanji to edit lyrics; click the kana above to edit a reading
+- Characters without a reading show no furigana
+- Export writes readings in a `Ruby:` block, one `汉字｜读音` pair per line
 
 **Notes and translation**: open Notes or Translation on a section. They cannot both be open. Hold Command and click notes, translation, or collapse to do the same on the whole song.
 
@@ -529,7 +528,7 @@ Fill in the provider URL and API key in Settings first. The model name may be em
 - **Imagine** (left of Export): the whole song
 - **Section Imagine** (swipe a lyric section right, blue button on the left): only that section
 
-Choose **Translation** or **Creative**. Pronunciation is coming later.
+Choose **Translation**, **Creative**, or **Furigana**.
 
 **Translation**:
 - Pick a target language; it is remembered next time
@@ -565,9 +564,10 @@ Preview shows:
 """),
         Section(icon: "square.and.arrow.up", title: "Import / Export", bodyMarkdown: """
 **Export**: click Export in the toolbar
-- Single song → `.smelody.txt` (metadata, lyrics, readings, translation)
-- Folder → batch export
-- Multi-select songs → batch export
+- Export as text (all information) → a full `.smelody.txt` (metadata, lyrics, furigana, translation, notes, ideas)
+- Export by content: check lyrics, translation, furigana, notes, and ideas, then export. Checked fields are written and can be imported back. Furigana-only still includes the lyric body so readings can attach. Unchecked fields import as empty and are not invented
+- Readings live in a per-section `Ruby:` block, one `汉字｜读音` pair per line. Old files without that block still import
+- Folder / multi-select → batch export (all information)
 
 **Import**: click Import in the toolbar
 - Supports `.smelody.txt`
@@ -616,7 +616,6 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 **ショートカット**:
 - `⌘N` 新規作成
 - `⇧⌘N` 新規セクション
-- `⇧⌘K` 日本語ふりがな自動付与
 - `⌘D` 選択中の楽曲をゴミ箱へ
 - `⌘W` 現在のウィンドウを閉じる
 - `Command-Esc` 進行中の Imagine を中止
@@ -631,7 +630,7 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 **中央カラム（エディタ）**:
 - 楽曲メタ情報（タイトル / アーティスト / 言語 / BPM / キー / 拍子）
 - セクションリスト
-- 歌詞テキストエディタとフリガナ chip
+- 歌詞テキストエディタ。ふりがながあるときは漢字の上に出ます
 - 書き出しボタンの左が曲全体の Imagine
 
 **右カラム（アイデア / 歌詞プレビュー / 設定）**:
@@ -663,10 +662,10 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
         Section(icon: "character.bubble.fill", title: "歌詞編集", bodyMarkdown: """
 **セクションタイプ**: Intro / Verse / Chorus / Bridge / Outro / カスタム。各タイプに固有の色・タグ・アイコンがあります。
 
-**フリガナ**: テキストエディタ下の「読み追加」をクリック
-- 開始位置 + 長さ（原文を自動プレビュー）
-- 読みテキスト
-- 「自動フリガナ」（日本語楽曲）
+**フリガナ**: 仮名は漢字の上に出ます。歌詞そのものはプレーンテキストのままです。
+- 漢字をクリックすると歌詞を直し、上の仮名をクリックすると読みを直します
+- ふりがなのない字の上には仮名を出しません
+- 書き出すと読みは `Ruby:` ブロックに入り、1 行が `漢字｜読み` の対です
 
 **メモと訳文**: セクションの「メモ」または「訳文」を開きます。同時には開けません。Command を押しながらメモ、訳文、折りたたみを押すと、曲全体が同じ開閉になります。
 
@@ -685,7 +684,7 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 - **Imagine**（書き出しの左）：曲全体
 - **段落Imagine**（歌詞セクションを右に滑らせ、左の青いボタン）：そのセクションだけ
 
-**翻訳**か**創作**を選びます。フリガナは近日対応。
+**翻訳**、**創作**、**ふりがな** を選べます。
 
 **翻訳**:
 - 訳す言語を選び、次回もその言語が選ばれます
@@ -721,9 +720,10 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 """),
         Section(icon: "square.and.arrow.up", title: "インポート / エクスポート", bodyMarkdown: """
 **エクスポート**: ツールバーのエクスポート
-- 単曲 → `.smelody.txt`（メタ情報、歌詞、読み、訳文）
-- フォルダ → 一括エクスポート
-- 複数選択楽曲 → 一括エクスポート
+- 「テキストとして書き出す（すべての情報）」→ 完全な `.smelody.txt`（メタ情報、歌詞、ふりがな、訳、メモ、着想）
+- 「内容を選んでエクスポート」：歌詞本文・訳・ふりがな・メモ・着想をチェックしてから書き出します。選んだ内容はファイルに入り、戻して読めます。ふりがなだけを選んでも歌詞本文は付きます。外した欄は空のまま入り、捏造しません
+- 読みは各セクションの `Ruby:` ブロックに、1 行 1 対の `漢字｜読み` で入ります。そのブロックのない旧ファイルもインポートできます
+- フォルダ / 複数選択 → 一括エクスポート（すべての情報）
 
 **インポート**: ツールバーのインポート
 - `.smelody.txt` 対応
@@ -772,7 +772,6 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 **단축키**:
 - `⌘N` 새 곡
 - `⇧⌘N` 새 섹션
-- `⇧⌘K` 일본어 후리가나 자동
 - `⌘D` 선택한 곡을 휴지통으로
 - `⌘W` 현재 창 닫기
 - `Command-Esc` 진행 중인 Imagine 취소
@@ -787,7 +786,7 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 **가운데(편집)**:
 - 곡 정보(제목 / 아티스트 / 언어 / BPM / 조성 / 박자)
 - 섹션 목록
-- 가사 편집과 발음 칩
+- 가사 편집. 후리가나가 있으면 한자 위에 나옵니다
 - 내보내기 왼쪽이 곡 전체 Imagine
 
 **오른쪽(아이디어 / 가사 미리보기 / 설정)**:
@@ -816,10 +815,10 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
         Section(icon: "character.bubble.fill", title: "가사 편집", bodyMarkdown: """
 **섹션 종류**: Intro / Verse / Chorus / Bridge / Outro / 사용자 지정. 색, 태그, 아이콘이 다릅니다.
 
-**발음**: 편집기 아래 「읽기 추가」
-- 시작 위치 + 길이(원문 미리보기)
-- 발음 텍스트
-- 「자동 후리가나」(일본어)
+**발음**: 가나가 한자 위에 올라갑니다. 가사 글자는 그대로입니다.
+- 한자를 누르면 가사를 고치고, 위의 가나를 누르면 읽기를 고칩니다
+- 주석이 없는 글자 위에는 가나가 없습니다
+- 내보내면 읽기는 `Ruby:` 블록에, 한 줄에 `한자｜읽기` 한 쌍으로 들어갑니다
 
 **메모와 번역**: 섹션에서 메모 또는 번역을 엽니다. 동시에 열 수 없습니다. Command를 누른 채 메모, 번역, 접기를 누르면 곡 전체가 같이 열리거나 닫힙니다.
 
@@ -838,7 +837,7 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 - **Imagine**(내보내기 왼쪽): 곡 전체
 - **단락 Imagine**(가사 섹션을 오른쪽으로 밀면 왼쪽 파란 버튼): 그 섹션만
 
-**번역** 또는 **창작**을 고릅니다. 발음은 곧 나옵니다.
+**번역**, **창작**, **후리가나**를 고릅니다.
 
 **번역**:
 - 목표 언어를 고르면 다음에도 기억합니다
@@ -874,9 +873,10 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 """),
         Section(icon: "square.and.arrow.up", title: "가져오기 / 내보내기", bodyMarkdown: """
 **내보내기**: 도구 막대의 내보내기
-- 한 곡 → `.smelody.txt` (정보, 가사, 발음, 번역)
-- 폴더 → 일괄 내보내기
-- 여러 곡 → 일괄 내보내기
+- 「텍스트로 내보내기(모든 정보)」→ 완전한 `.smelody.txt` (정보, 가사, 후리가나, 번역, 메모, 영감)
+- 「내용 골라 내보내기」: 가사 본문, 번역, 후리가나, 메모, 영감을 고른 뒤 내보냅니다. 고른 내용은 파일에 쓰이고 다시 가져올 수 있습니다. 후리가나만 골라도 가사 본문은 따라갑니다. 빼 둔 칸은 비어 들어오며 지어내지 않습니다
+- 읽기는 각 섹션의 `Ruby:` 블록에, 한 줄에 `한자｜읽기` 한 쌍으로 들어갑니다. 그 블록이 없는 옛 파일도 가져올 수 있습니다
+- 폴더 / 여러 곡 → 일괄 내보내기(모든 정보)
 
 **가져오기**: 도구 막대의 가져오기
 - `.smelody.txt` 지원
@@ -925,7 +925,6 @@ Simple Melody es una app nativa de macOS para escribir letras. Al abrirla, la ve
 **Atajos**:
 - `⌘N` nueva canción
 - `⇧⌘N` nueva sección
-- `⇧⌘K` furigana japonés automático
 - `⌘D` enviar las canciones elegidas a la Papelera
 - `⌘W` cerrar la ventana actual
 - `Command-Esc` cancelar un Imagine en curso
@@ -940,7 +939,7 @@ Simple Melody es una app nativa de macOS para escribir letras. Al abrirla, la ve
 **Centro (editor)**:
 - Datos de la canción (título / artista / idioma / BPM / tonalidad / compás)
 - Lista de secciones
-- Editor de letra y chips de pronunciación
+- Editor de letra; el furigana sale encima de los kanji si hay lecturas
 - Imagine de toda la canción está a la izquierda de Exportar
 
 **Derecha (Ideas / vista previa / Ajustes)**:
@@ -968,10 +967,10 @@ Simple Melody es una app nativa de macOS para escribir letras. Al abrirla, la ve
         Section(icon: "character.bubble.fill", title: "Edición de la letra", bodyMarkdown: """
 **Tipos de sección**: Intro / Verse / Chorus / Bridge / Outro / personalizado. Cada tipo tiene color, etiqueta e icono.
 
-**Pronunciación**: pulsa «Añadir lectura» bajo el editor
-- Posición inicial + longitud (vista previa del texto)
-- Texto fonético
-- «Furigana automático» para canciones en japonés
+**Pronunciación**: el kana sale encima del kanji; la letra sigue en texto simple.
+- Pulse el kanji para editar la letra; pulse el kana de encima para editar la lectura
+- Los caracteres sin lectura no muestran furigana
+- Al exportar, las lecturas van en un bloque `Ruby:`, un par `汉字｜读音` por línea
 
 **Notas y traducción**: abre Notas o Traducción en una sección. No se abren a la vez. Mantén Command y pulsa notas, traducción o plegado para hacer lo mismo en toda la canción.
 
@@ -990,7 +989,7 @@ Primero rellena en Ajustes la URL del proveedor y la clave de API. El nombre del
 - **Imagine** (a la izquierda de Exportar): toda la canción
 - **Imagine de sección** (desliza una sección a la derecha, botón azul a la izquierda): solo esa sección
 
-Elige **Traducción** o **Creativo**. La pronunciación llegará más adelante.
+Elige **Traducción**, **Creativo** o **Furigana**.
 
 **Traducción**:
 - Elige el idioma; se recuerda la próxima vez
@@ -1026,9 +1025,10 @@ La vista previa muestra:
 """),
         Section(icon: "square.and.arrow.up", title: "Importar / Exportar", bodyMarkdown: """
 **Exportar**: pulsa Exportar en la barra
-- Una canción → `.smelody.txt` (datos, letra, lecturas, traducción)
-- Carpeta → exportación por lotes
-- Varias canciones → exportación por lotes
+- Exportar como texto (toda la información) → un `.smelody.txt` completo (datos, letra, furigana, traducción, notas, ideas)
+- Exportar por contenido: marca letra, traducción, furigana, notas e ideas y luego exporta. Lo marcado se escribe y se puede volver a importar. Si solo marcas furigana, la letra va con él. Los campos sin marcar llegan vacíos y no se inventan
+- Las lecturas van en un bloque `Ruby:` por sección, un par `汉字｜读音` por línea. Los archivos viejos sin ese bloque siguen importándose
+- Carpeta / varias canciones → exportación por lotes (toda la información)
 
 **Importar**: pulsa Importar en la barra
 - Admite `.smelody.txt`

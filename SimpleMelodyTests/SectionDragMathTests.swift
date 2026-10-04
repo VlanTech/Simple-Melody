@@ -8,6 +8,8 @@
 
 import Foundation
 import CoreGraphics
+import AppKit
+import CoreText
 
 @main
 enum SectionDragMathTests {
@@ -488,10 +490,111 @@ enum SectionDragMathTests {
         expectEqual(enNotes.first?.notes ?? "", "piano", "Notes: alias is a notes marker")
         expectEqual(enNotes.first?.body ?? "", "hum", "Notes: not mixed into body")
 
+        expectEqual(SectionLyricCodec.rubyExportLabel, "Ruby", "ruby export label is Ruby")
+        let rubyPairsText = SectionLyricCodec.rubyExportText([("東京", "とうきょう"), ("負", "ま")])
+        expectEqual(rubyPairsText, "東京｜とうきょう\n負｜ま", "ruby export text is 汉字｜读音 lines")
+        expect(SectionLyricCodec.rubyExportText([("  ", "あ")]).isEmpty, "empty original is omitted from ruby export")
+        let encodedRuby = SectionLyricCodec.encode(
+            marker: "[Verse]",
+            body: "東京は負けず劣らず",
+            translation: "东京也不服输",
+            notes: "gikun ok",
+            notesLabel: "段落笔记",
+            ruby: "東京｜とうきょう\n負｜ま\n劣｜おと"
+        )
+        let encodedRubyText = encodedRuby.joined(separator: "\n")
+        expect(encodedRubyText.contains("  Ruby:"), "encode writes a Ruby block")
+        expect(encodedRubyText.contains("    東京｜とうきょう"), "encode writes 汉字｜读音 under Ruby")
+        expect(encodedRubyText.contains("  Translation:"), "ruby file still has Translation")
+        let parsedRuby = SectionLyricCodec.parseLyrics(encodedRuby)
+        expectEqual(parsedRuby.first?.body ?? "", "東京は負けず劣らず", "ruby block is not mixed into lyrics")
+        expectEqual(parsedRuby.first?.ruby ?? "", "東京｜とうきょう\n負｜ま\n劣｜おと", "parse keeps the ruby field")
+        expectEqual(parsedRuby.first?.translation ?? "", "东京也不服输", "ruby file keeps translation")
+        expectEqual(parsedRuby.first?.notes ?? "", "gikun ok", "ruby file keeps notes")
+        expect(!(parsedRuby.first?.body ?? "").contains("とうきょう"), "body must not contain readings")
+        let zhRuby = SectionLyricCodec.parseLyrics("""
+        [Chorus]
+        東京
+          注音:
+            東京｜とうきょう
+        """.components(separatedBy: "\n"))
+        expectEqual(zhRuby.first?.ruby ?? "", "東京｜とうきょう", "注音: alias is a ruby marker")
+        expectEqual(zhRuby.first?.body ?? "", "東京", "注音: not mixed into body")
+        let furiAlias = SectionLyricCodec.parseLyrics("""
+        [Verse]
+        人
+          Furigana:
+            人|ひと
+        """.components(separatedBy: "\n"))
+        expectEqual(furiAlias.first?.ruby ?? "", "人|ひと", "Furigana: alias is a ruby marker")
+        let oldFile = SectionLyricCodec.parseLyrics("""
+        [Verse]
+        hello chorus
+          Translation:
+            你好副歌
+          段落笔记:
+            keep this as notes
+        """.components(separatedBy: "\n"))
+        expectEqual(oldFile.first?.ruby ?? "", "", "old files without Ruby still import")
+        expectEqual(oldFile.first?.body ?? "", "hello chorus", "old files keep lyrics")
+        let lyricsOnly = SectionLyricCodec.encode(
+            marker: "[Verse]",
+            body: "sung line",
+            translation: "译文",
+            notes: "a note",
+            notesLabel: "段落笔记",
+            ruby: "字｜よ",
+            options: SongExportOptions(lyrics: true, translation: false, ruby: false, notes: false, ideas: false)
+        ).joined(separator: "\n")
+        expect(lyricsOnly.contains("sung line"), "lyrics-only export keeps the body")
+        expect(!lyricsOnly.contains("Translation"), "lyrics-only export omits translation")
+        expect(!lyricsOnly.contains("Ruby"), "lyrics-only export omits ruby")
+        expect(!lyricsOnly.contains("段落笔记"), "lyrics-only export omits notes")
+        let rubyOnly = SongExportOptions(lyrics: false, translation: false, ruby: true, notes: false, ideas: false)
+        expect(rubyOnly.writesLyricBody, "exporting ruby also writes the lyric body so it can import")
+        expect(rubyOnly.includesLyricsSection, "ruby-only still writes the Lyrics section")
+        let none = SongExportOptions(lyrics: false, translation: false, ruby: false, notes: false, ideas: false)
+        expect(!none.includesAnything, "no boxes checked is empty")
+        expect(SongExportOptions.all.includesAnything, "default export includes everything")
+        let placedFromFile = ImagineWorkflow.placeRuby(
+            lyrics: "東京は負けず劣らず",
+            pairs: ImagineWorkflow.rubyPairs(from: parsedRuby.first?.ruby ?? "")
+        )
+        expectEqual(placedFromFile.count, 3, "file ruby places onto the lyrics")
+        expectEqual(placedFromFile[0].phonetic, "とうきょう", "file ruby 東京 reading round-trips")
+        let selectedTranslation = SectionLyricCodec.encode(
+            marker: "[Verse]",
+            body: "sung line",
+            translation: "东京也不服输",
+            notes: "a note",
+            notesLabel: "段落笔记",
+            ruby: "字｜よ",
+            options: SongExportOptions(lyrics: false, translation: true, ruby: false, notes: false, ideas: false)
+        ).joined(separator: "\n")
+        expect(!selectedTranslation.contains("sung line"), "checked-translation export omits the lyric body")
+        expect(selectedTranslation.contains("Translation"), "checked-translation export keeps translation")
+        expect(!selectedTranslation.contains("Ruby"), "checked-translation export omits ruby")
+        let selectedTranslationParsed = SectionLyricCodec.parseLyrics(selectedTranslation.components(separatedBy: "\n"))
+        expectEqual(selectedTranslationParsed.first?.body ?? "", "", "checked-translation import has empty lyrics")
+        expectEqual(selectedTranslationParsed.first?.translation ?? "", "东京也不服输", "checked-translation import keeps translation")
+        let selectedNotes = SectionLyricCodec.encode(
+            marker: "[Chorus]",
+            body: "sung line",
+            translation: "译文",
+            notes: "keep this as notes",
+            notesLabel: "段落笔记",
+            ruby: "字｜よ",
+            options: SongExportOptions(lyrics: false, translation: false, ruby: false, notes: true, ideas: false)
+        )
+        let selectedNotesParsed = SectionLyricCodec.parseLyrics(selectedNotes)
+        expectEqual(selectedNotesParsed.first?.notes ?? "", "keep this as notes", "checked-notes export round-trips notes")
+        expectEqual(selectedNotesParsed.first?.body ?? "", "", "checked-notes export omits the lyric body")
+        expectEqual(selectedNotesParsed.first?.ruby ?? "", "", "checked-notes export omits ruby")
+
         // MARK: v1.8.0 version compare + GitHub payload (injected)
 
-        expectEqual(AppReleaseMath.displayVersion, "v1.8.2", "display version is v1.8.2")
-        expectEqual(AppReleaseMath.marketingVersion, "1.8.2", "marketing version is 1.8.2")
+        expectEqual(AppReleaseMath.displayVersion, "v1.8.3", "display version is v1.8.3")
+        expectEqual(AppReleaseMath.marketingVersion, "1.8.3", "marketing version is 1.8.3")
         expectEqual(AppReleaseMath.compare(local: "v1.8.0", remote: "v1.7.10"), 1, "1.8.0 is newer than GitHub 1.7.10")
         expectEqual(AppReleaseMath.compare(local: "v1.7.9", remote: "v1.7.10"), -1, "1.7.9 is older than 1.7.10")
         expectEqual(AppReleaseMath.compare(local: "v1.7.10 Extra", remote: "v1.7.10"), 0, "letter suffix does not change numeric compare")
@@ -779,6 +882,27 @@ enum SectionDragMathTests {
         for (lang, expected) in sectionImagineNames {
             expectEqual(tables[lang]?["段落Imagine"] ?? "", expected, "\(lang.rawValue) 段落Imagine name")
         }
+        for lang in langs {
+            expect(!(tables[lang]?["注音可能无法撤销或改错"] ?? "").isEmpty, "\(lang.rawValue) has furigana warning title")
+            expect(!(tables[lang]?["注音会改动读音，可能无法撤销或出现错误。确定要继续吗？"] ?? "").isEmpty, "\(lang.rawValue) has furigana warning body")
+            expect(!(tables[lang]?["没有歌词的段落不会注音"] ?? "").isEmpty, "\(lang.rawValue) has empty-lyrics furigana message")
+            expect(!(tables[lang]?["请先选中要注音的汉字"] ?? "").isEmpty, "\(lang.rawValue) has select-kanji-first alert")
+        }
+        expectEqual(tables[.english]?["注音"] ?? "", "Furigana", "English 注音 label")
+        expectEqual(tables[.japanese]?["注音"] ?? "", "ふりがな", "Japanese 注音 label")
+        let exportByContent: [(AppLanguage, String, String, String)] = [
+            (.simplifiedChinese, "按内容导出", "导出选中内容", "歌词正文"),
+            (.traditionalChinese, "按內容匯出", "匯出選中內容", "歌詞正文"),
+            (.english, "Export by content", "Export selected content", "Lyrics"),
+            (.japanese, "内容を選んでエクスポート", "選択した内容をエクスポート", "歌詞本文"),
+            (.korean, "내용 골라 내보내기", "선택한 내용 내보내기", "가사 본문"),
+            (.spanish, "Exportar por contenido", "Exportar lo seleccionado", "Letra"),
+        ]
+        for (lang, byContent, selected, body) in exportByContent {
+            expectEqual(tables[lang]?["按内容导出"] ?? "", byContent, "\(lang.rawValue) 按内容导出")
+            expectEqual(tables[lang]?["导出选中内容"] ?? "", selected, "\(lang.rawValue) 导出选中内容")
+            expectEqual(tables[lang]?["歌词正文"] ?? "", body, "\(lang.rawValue) 歌词正文")
+        }
         let largeModelHint = "建议选用参数量更大的模型，以便翻译、注音和创作更准确"
         for lang in langs {
             let hint = tables[lang]?[largeModelHint] ?? ""
@@ -820,12 +944,327 @@ enum SectionDragMathTests {
             "other Agent wording on the skill page stays"
         )
 
-        // MARK: v1.8.2 identity and changelog
-        expectEqual(AppReleaseMath.displayVersion, "v1.8.2", "shipped display version")
-        expectEqual(AppReleaseMath.marketingVersion, "1.8.2", "shipped marketing version")
+        // MARK: v1.8.3 lyrics ruby + identity
+        let lyrics = "東京は"
+        let tokyo = LyricsRubySpan(rangeStart: 0, rangeLength: 2, original: "東京", phonetic: "とうきょう")
+        let rubyFont = NSFont.systemFont(ofSize: 16)
+        let withRuby = LyricsRubyMath.attributedString(lyrics: lyrics, annotations: [tokyo], font: rubyFont)
+        let withoutRuby = LyricsRubyMath.attributedString(lyrics: lyrics, annotations: [], font: rubyFont)
+        expectEqual(withRuby.string, lyrics, "storage string stays 東京は")
+        expectEqual(withoutRuby.string, lyrics, "unannotated storage string stays 東京は")
+        expectEqual(LyricsRubyMath.rubyText(at: 0, in: withRuby) ?? "", "とうきょう", "東京 has ruby とうきょう")
+        expectEqual(LyricsRubyMath.rubyText(at: 1, in: withRuby) ?? "", "とうきょう", "京 shares the 東京 ruby run")
+        expect(LyricsRubyMath.rubyText(at: 2, in: withRuby) == nil, "は has no ruby")
+        var tokyoRange = NSRange(location: 0, length: 0)
+        let tokyoAttrs = withRuby.attributes(at: 0, effectiveRange: &tokyoRange)
+        expectEqual(tokyoRange, NSRange(location: 0, length: 2), "ruby run covers 東京")
+        let factor = LyricsRubyMath.rubySizeFactor(in: tokyoAttrs) ?? 1
+        expect(factor < 1, "ruby size factor is smaller than the base glyphs")
+        expectEqual(factor, LyricsRubyMath.rubySizeFactor, "ruby size factor is the shipped 0.5")
+        let afterText = (tokyoAttrs[LyricsRubyMath.rubyAttributeName] as! CTRubyAnnotation)
+        expect(CTRubyAnnotationGetTextForPosition(afterText, .after) == nil || (CTRubyAnnotationGetTextForPosition(afterText, .after) as String?)?.isEmpty == true, "ruby position is before (above), not after")
+        expect(LyricsRubyMath.rubyText(at: 0, in: withoutRuby) == nil, "no annotations yields no ruby")
+        expect(!LyricsRubyMath.containsRuby(withoutRuby), "empty annotation list has no ruby attributes")
+        let rubyHeight = LyricsRubyMath.usedHeight(withRuby, width: 240)
+        let plainHeight = LyricsRubyMath.usedHeight(withoutRuby, width: 240)
+        expect(rubyHeight > plainHeight, "framesetter height with ruby is greater than without")
+
+        let extraRuby = LyricsRubyMath.extraLineHeight(fontSize: 16)
+        expect(extraRuby > 0, "ruby band has height")
+        let baseCaret = LyricsRubyMath.baseLineHeight(font: rubyFont)
+        expect(baseCaret > 0, "kanji line height is positive")
+        let tallCaret = CGRect(x: 4, y: 0, width: 1, height: extraRuby + baseCaret)
+        let trimmedCaret = LyricsRubyMath.caretRect(
+            from: tallCaret,
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true
+        )
+        expectEqual(trimmedCaret.height, baseCaret, "caret height covers the kanji, not the ruby")
+        expectEqual(trimmedCaret.origin.y, extraRuby, "caret starts below the ruby band")
+        let doubleExtraCaret = CGRect(x: 4, y: 0, width: 1, height: extraRuby * 2 + baseCaret)
+        let pinnedCaret = LyricsRubyMath.caretRect(
+            from: doubleExtraCaret,
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true
+        )
+        expectEqual(pinnedCaret.height, baseCaret, "double-extra fragment still pins the caret to the kanji")
+        expectEqual(pinnedCaret.origin.y, extraRuby * 2, "pinned caret sits on the kanji at the bottom of the fragment")
+        let shortOnRuby = LyricsRubyMath.caretRect(
+            from: CGRect(x: 4, y: 0, width: 1, height: baseCaret),
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true
+        )
+        expectEqual(shortOnRuby.origin.y, extraRuby, "font-height caret on a ruby line moves down onto the kanji")
+        expectEqual(shortOnRuby.height, baseCaret, "shifted caret keeps the kanji height")
+        let plainCaret = LyricsRubyMath.caretRect(
+            from: CGRect(x: 4, y: 0, width: 1, height: 20),
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: false
+        )
+        expectEqual(plainCaret.height, CGFloat(20), "caret on a line without ruby stays the base height")
+        expectEqual(plainCaret.origin.y, CGFloat(0), "caret on a line without ruby is not shifted")
+        expectEqual(LyricsRubyMath.systemCaretWidth, CGFloat(2), "search-field caret is the system 2pt bar")
+        expectEqual(LyricsRubyMath.caretWidth(fontSize: 13), LyricsRubyMath.systemCaretWidth, "small type keeps the system caret width")
+        expectEqual(LyricsRubyMath.caretWidth(fontSize: 16), LyricsRubyMath.systemCaretWidth, "default 16pt caret matches the song-search field")
+        expectEqual(LyricsRubyMath.caretWidth(fontSize: 22), LyricsRubyMath.systemCaretWidth, "larger type still uses the system caret width")
+        expectEqual(LyricsRubyMath.caretColor, NSColor.textInsertionPointColor, "caret uses the system insertion color, not body text")
+        expectEqual(LyricsRubyMath.caretMoveDuration, TimeInterval(0.1), "caret move duration is a short linear slide")
+        expect(
+            LyricsRubyMath.shouldAnimateCaretMove(
+                from: CGRect(x: 4, y: 10, width: 2, height: 16),
+                to: CGRect(x: 20, y: 10, width: 2, height: 16)
+            ),
+            "moving to another glyph animates"
+        )
+        expect(
+            !LyricsRubyMath.shouldAnimateCaretMove(
+                from: CGRect(x: 4, y: 10, width: 2, height: 16),
+                to: CGRect(x: 4.2, y: 10, width: 2, height: 16)
+            ),
+            "sub-pixel jitter does not animate"
+        )
+        expect(
+            !LyricsRubyMath.shouldAnimateCaretMove(from: .null, to: CGRect(x: 4, y: 10, width: 2, height: 16)),
+            "first placement does not animate"
+        )
+        let inserted = LyricsRubyMath.insertionRect(
+            fragment: tallCaret,
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true,
+            fontSize: 16
+        )
+        expectEqual(inserted.height, baseCaret, "insertion height covers the kanji, not the ruby")
+        expectEqual(inserted.origin.y, extraRuby, "insertion starts below the ruby band")
+        expectEqual(inserted.origin.x, tallCaret.origin.x, "insertion keeps the glyph x")
+        expectEqual(inserted.width, LyricsRubyMath.systemCaretWidth, "placeholder width becomes the system caret width")
+        let proposedInserted = LyricsRubyMath.insertionRect(
+            fragment: CGRect(x: 4, y: 0, width: 2, height: extraRuby + baseCaret),
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true,
+            fontSize: 16
+        )
+        expectEqual(proposedInserted.width, CGFloat(2), "AppKit's 2pt insertion width is kept")
+        let shortInserted = LyricsRubyMath.insertionRect(
+            fragment: CGRect(x: 4, y: 0, width: 1, height: baseCaret),
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: true,
+            fontSize: 16
+        )
+        expectEqual(shortInserted.origin.y, extraRuby, "font-height insertion on a ruby line moves down onto the kanji")
+        expectEqual(shortInserted.height, baseCaret, "shifted insertion keeps the kanji height")
+        let plainInserted = LyricsRubyMath.insertionRect(
+            fragment: CGRect(x: 4, y: 0, width: 1, height: 20),
+            extraRubyHeight: extraRuby,
+            baseLineHeight: baseCaret,
+            lineHasRuby: false,
+            fontSize: 22
+        )
+        expectEqual(plainInserted.height, CGFloat(20), "plain-line insertion stays the base height")
+        expectEqual(plainInserted.origin.y, CGFloat(0), "plain-line insertion is not shifted")
+        expectEqual(plainInserted.width, LyricsRubyMath.systemCaretWidth, "plain-line insertion uses the system caret width")
+        // 指针：编辑框内一律 I 形，只有可点按的注音那一块给箭头
+        expectEqual(LyricsRubyMath.pointerKind(overTappableRuby: true), .arrow, "the pointer is an arrow over a reading that can be clicked")
+        expectEqual(LyricsRubyMath.pointerKind(overTappableRuby: false), .iBeam, "everywhere else in the lyrics box stays an I-beam")
+        let tapRect = LyricsRubyMath.rubyHitRect(
+            baseBox: CGRect(x: 10, y: 0, width: 32, height: 20),
+            rubyWidth: 14,
+            lineMinY: 4,
+            extraRubyHeight: extraRuby
+        )
+        expectEqual(tapRect, CGRect(x: 10, y: 4, width: 32, height: extraRuby), "a reading shorter than its kanji keeps the kanji width")
+        expect(tapRect.contains(CGPoint(x: 26, y: 4 + extraRuby / 2)), "the middle of the ruby band is clickable")
+        expect(!tapRect.contains(CGPoint(x: 26, y: 4 + extraRuby + 1)), "the kanji just under the band is not clickable")
+        expect(!tapRect.contains(CGPoint(x: 60, y: 4 + extraRuby / 2)), "the empty space beside the reading is not clickable")
+        let wideTapRect = LyricsRubyMath.rubyHitRect(
+            baseBox: CGRect(x: 10, y: 0, width: 32, height: 20),
+            rubyWidth: 48,
+            lineMinY: 4,
+            extraRubyHeight: extraRuby
+        )
+        expect(wideTapRect.width > tapRect.width, "a reading wider than its kanji widens the clickable box")
+        expectEqual(wideTapRect.midX, tapRect.midX, "the widened box stays centered on the kanji")
+        let hit = LyricsRubyMath.rubyHitXRange(baseMinX: 10, baseWidth: 16, rubyWidth: 40)
+        expect(hit.maxX - hit.minX >= 40, "ruby hit box covers a reading wider than the kanji")
+
+        // MARK: 歌词改动后注音跟着挪（假名必须压在自己的汉字上）
+        let before = "君と東京の街" as NSString   // 東京 在 [2,2)
+        let insertedHead = "あ君と東京の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 0, length: 0), replacement: "あ", updatedText: insertedHead
+            ),
+            .keep(rangeStart: 3, rangeLength: 2),
+            "在注音前面插入：注音整体右移"
+        )
+        let deletedHead = "と東京の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 0, length: 1), replacement: "", updatedText: deletedHead
+            ),
+            .keep(rangeStart: 1, rangeLength: 2),
+            "在注音前面删除：注音整体左移"
+        )
+        let appended = "君と東京の街を歩いた" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 6, length: 0), replacement: "を歩いた", updatedText: appended
+            ),
+            .keep(rangeStart: 2, rangeLength: 2),
+            "在注音后面改动：注音范围不动"
+        )
+        let replacedInside = "君と東坂の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 3, length: 1), replacement: "坂", updatedText: replacedInside
+            ),
+            .drop,
+            "注音里的字被改掉：读音作废"
+        )
+        let retypedSame = "君と東京の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 2, length: 2), replacement: "東京", updatedText: retypedSame
+            ),
+            .keep(rangeStart: 2, rangeLength: 2),
+            "原位重打同样的字：保留读音"
+        )
+        let deletedTail = "君と東の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 3, length: 1), replacement: "", updatedText: deletedTail
+            ),
+            .drop,
+            "注音里删掉一个字：读音作废"
+        )
+        let widened = "君と東京都の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 4, length: 0), replacement: "都", updatedText: widened
+            ),
+            .keep(rangeStart: 2, rangeLength: 2),
+            "紧跟注音后面插入：注音范围不受影响"
+        )
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 999, length: 1), replacement: "x", updatedText: before
+            ),
+            .keep(rangeStart: 2, rangeLength: 2),
+            "越界的编辑位置不影响它前面的注音"
+        )
+        let staleSpan = LyricsRubySpan(rangeStart: 999, rangeLength: 2, original: "東京", phonetic: "とうきょう")
+        let staleRendered = LyricsRubyMath.attributedString(
+            lyrics: "君と東京の街", annotations: [staleSpan], font: .systemFont(ofSize: 16)
+        )
+        expect(!LyricsRubyMath.containsRuby(staleRendered), "过期的注音范围被渲染层跳过，不抛异常")
+        expectEqual(
+            LyricsRubyMath.kernAdjustments(lyrics: "君と東京の街", annotations: [staleSpan], font: .systemFont(ofSize: 16)),
+            [:],
+            "kernAdjustments 跳过越界注音"
+        )
+        let stepOneText = "あ君と東京の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 2, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 0, length: 0), replacement: "あ", updatedText: stepOneText
+            ),
+            .keep(rangeStart: 3, rangeLength: 2),
+            "两步重放·第一步：句首插入后右移"
+        )
+        let stepTwoText = "あと東京の街" as NSString
+        expectEqual(
+            LyricsRubyMath.remapAnnotation(
+                rangeStart: 3, rangeLength: 2, original: "東京",
+                edit: NSRange(location: 1, length: 1), replacement: "", updatedText: stepTwoText
+            ),
+            .keep(rangeStart: 2, rangeLength: 2),
+            "两步重放·第二步：删掉插入的字后左移回来"
+        )
+        let lightFill = LyricsRubyMath.editingHighlightColor(dark: false)
+        let darkFill = LyricsRubyMath.editingHighlightColor(dark: true)
+        expect(lightFill != darkFill, "editing highlight differs in light and dark mode")
+        var lr: CGFloat = 0, lg: CGFloat = 0, lb: CGFloat = 0, la: CGFloat = 0
+        var dr: CGFloat = 0, dg: CGFloat = 0, db: CGFloat = 0, da: CGFloat = 0
+        lightFill.usingColorSpace(.sRGB)?.getRed(&lr, green: &lg, blue: &lb, alpha: &la)
+        darkFill.usingColorSpace(.sRGB)?.getRed(&dr, green: &dg, blue: &db, alpha: &da)
+        expect(lr + lg + lb > dr + dg + db, "light-mode highlight is lighter than dark-mode")
+        expect((lr + lg + lb) / 3 > 0.93, "light-mode highlight stays pale enough to read")
+        let phrase = "当然です"
+        let mixedSel = NSRange(location: 1, length: 2)
+        expectEqual((phrase as NSString).substring(with: mixedSel), "然で", "fixture selects 然で inside 当然です")
+        let expanded = LyricsRubyMath.selectedKanjiRun(in: phrase, selection: mixedSel)
+        expect(expanded?.location == 0 && expanded?.length == 2, "然で expands to the full 当然 run")
+        expectEqual((phrase as NSString).substring(with: expanded ?? NSRange()), "当然", "expanded run is 当然")
+        let caretRun = LyricsRubyMath.selectedKanjiRun(in: phrase, selection: NSRange(location: 1, length: 0))
+        expect(caretRun?.location == 0 && caretRun?.length == 2, "caret on 然 still expands to 当然")
+        expect(LyricsRubyMath.selectedKanjiRun(in: phrase, selection: NSRange(location: 2, length: 2)) == nil, "です with no kanji does not start a reading")
+        expect(LyricsRubyMath.selectedKanjiRun(in: "", selection: NSRange(location: 0, length: 0)) == nil, "empty lyrics have no kanji run")
+        let highlighted = LyricsRubyMath.attributedString(
+            lyrics: lyrics,
+            annotations: [tokyo],
+            font: rubyFont,
+            editingRange: NSRange(location: 0, length: 2),
+            darkAppearance: false
+        )
+        expect(highlighted.attribute(.backgroundColor, at: 0, effectiveRange: nil) != nil, "editing wraps 東京 in a background")
+        expect(highlighted.attribute(.backgroundColor, at: 2, effectiveRange: nil) == nil, "は is not wrapped while 東京 is edited")
+
+        let blocked = LyricsRubyMath.kernAdjustments(
+            lyrics: "人字人",
+            annotations: [LyricsRubySpan(rangeStart: 1, rangeLength: 1, original: "字", phonetic: "あいうえおかきくけこ")],
+            font: rubyFont
+        )
+        expect(blocked.values.reduce(0, +) > 0, "long ruby between ideographs expands the kanji")
+        let openKana = LyricsRubyMath.kernAdjustments(
+            lyrics: "の字の",
+            annotations: [LyricsRubySpan(rangeStart: 1, rangeLength: 1, original: "字", phonetic: "あいうえおかきくけこ")],
+            font: rubyFont
+        )
+        expect(openKana.values.reduce(0, +) == 0, "long ruby beside unannotated kana does not expand the kanji")
+        let tokyoKern = LyricsRubyMath.kernAdjustments(lyrics: lyrics, annotations: [tokyo], font: rubyFont)
+        expect(tokyoKern.values.reduce(0, +) == 0, "とうきょう over 東京は hangs into は, no extra kanji spacing")
+        let splitKern = LyricsRubyMath.kernAdjustments(
+            lyrics: "負けず劣らず",
+            annotations: [
+                LyricsRubySpan(rangeStart: 0, rangeLength: 1, original: "負", phonetic: "ああああああああ"),
+                LyricsRubySpan(rangeStart: 3, rangeLength: 1, original: "劣", phonetic: "ああああああああ"),
+            ],
+            font: rubyFont
+        )
+        expect((splitKern[1] ?? 0) + (splitKern[2] ?? 0) > 0, "けず keeps a buffer when the two readings would meet")
+        let groupKern = LyricsRubyMath.kernAdjustments(
+            lyrics: "人東京人",
+            annotations: [LyricsRubySpan(rangeStart: 1, rangeLength: 2, original: "東京", phonetic: "あいうえおかきくけこ")],
+            font: rubyFont
+        )
+        expect((groupKern[1] ?? 0) > 0, "group ruby longer than consecutive kanji adds space between the kanji")
+        let withKern = LyricsRubyMath.attributedString(
+            lyrics: "人字人",
+            annotations: [LyricsRubySpan(rangeStart: 1, rangeLength: 1, original: "字", phonetic: "あいうえおかきくけこ")],
+            font: rubyFont
+        )
+        expect(LyricsRubyMath.kern(at: 0, in: withKern) + LyricsRubyMath.kern(at: 1, in: withKern) > 0, "attributed string applies the extra kern")
+
+        expectEqual(AppReleaseMath.displayVersion, "v1.8.3", "shipped display version")
+        expectEqual(AppReleaseMath.marketingVersion, "1.8.3", "shipped marketing version")
         let shown = ChangelogContent.displayedEntries
         let latest = shown.filter(\.isLatest)
-        expectEqual(latest.map(\.version), ["v1.8.2"], "only latest changelog row is v1.8.2")
+        expectEqual(latest.map(\.version), ["v1.8.3"], "only latest changelog row is v1.8.3")
+        expect(!shown.contains(where: { $0.version == "v1.8.2" && $0.isLatest }), "v1.8.2 is not latest")
         expect(!shown.contains(where: { $0.version == "v1.8.1" && $0.isLatest }), "v1.8.1 is not latest")
         expectEqual(shown.first { $0.version == "v1.7.10" }?.date ?? "", "2026-06-26", "displayed v1.7.10 date is June 26")
         expect(!shown.contains(where: { $0.version.contains("Extra") }), "Extra heading is folded into v1.7.10")
@@ -837,25 +1276,43 @@ enum SectionDragMathTests {
             latest[0].bodyMarkdownKO ?? "",
             latest[0].bodyMarkdownES ?? "",
         ]
-        expectEqual(bodies.filter { !$0.isEmpty }.count, 6, "v1.8.2 has six language bodies")
-        let imagineNotes = [
+        expectEqual(bodies.filter { !$0.isEmpty }.count, 6, "v1.8.3 has six language bodies")
+        // 简体正文是手写范本，其他语言照它翻译
+        let rubyNotes = [
             ["Imagine", "Imagine", "Imagine", "Imagine", "Imagine", "Imagine"],
-            ["翻译", "翻譯", "Translation", "翻訳", "번역", "raducción"],
-            ["创意", "創意", "Creative", "創作", "창작", "reativo"],
-            ["模型名", "模型", "model name", "モデル名", "모델", "modelo"],
-            ["测试", "測試", "Test connection", "接続", "연결", "robar"],
-            ["依照当前格式", "依照當前格式", "current format", "形式に合わせる", "현재 형식", "formato actual"],
-            ["拆开", "拆開", "in order", "分けて", "나눠", "en orden"],
-            ["无法撤销", "無法撤銷", "irreversible", "取り消せ", "되돌릴", "deshacerse"],
-            ["段落Imagine", "段落Imagine", "Section Imagine", "段落 Imagine", "단락 Imagine", "Imagine de sección"],
-            ["文风", "文風", "style", "文風", "문체", "estilo"],
-            ["歌名", "歌名", "title", "曲名", "제목", "título"],
-            ["滑块", "滑桿", "slider", "スライダー", "슬라이더", "deslizante"],
-            ["字体大小", "字體大小", "font size", "フォントサイズ", "글자 크기", "tamaño de letra"],
-            ["窗口和分栏宽度不变", "視窗和分欄寬度不變", "stay put", "そのまま", "그대로", "no se mueven"],
-            ["铺满屏幕", "鋪滿螢幕", "fills the screen", "画面いっぱい", "화면을 채", "llena la pantalla"],
+            ["注音", "注音", "furigana", "ふりがな", "후리가나", "furigana"],
+            ["日语", "日語", "Japanese", "日本語", "일본어", "japonés"],
+            ["歌词", "歌詞", "Lyric", "歌詞", "가사", "letra"],
+            ["光标", "游標", "cursor", "カーソル", "커서", "cursor"],
+            ["导出", "匯出", "export", "書き出", "내보낼", "exportar"],
+            ["创意", "創意", "Creative", "創作", "창작", "Creativo"],
+            ["弃用", "棄用", "retired", "廃止", "폐지", "retirado"],
         ]
         for (index, body) in bodies.enumerated() {
+            for phrases in rubyNotes {
+                expect(body.contains(phrases[index]), "v1.8.3 body \(index) mentions \(phrases[index])")
+            }
+        }
+        let v182 = shown.first { $0.version == "v1.8.2" }
+        let v182Bodies = [
+            v182?.bodyMarkdown ?? "",
+            v182?.bodyMarkdownZHT ?? "",
+            v182?.bodyMarkdownEN ?? "",
+            v182?.bodyMarkdownJA ?? "",
+            v182?.bodyMarkdownKO ?? "",
+            v182?.bodyMarkdownES ?? "",
+        ]
+        let imagineNotes = [
+            ["Imagine", "Imagine", "Imagine", "Imagine", "Imagine", "Imagine"],
+            ["右上方", "右上方", "top right", "右上", "오른쪽 위", "arriba a la derecha"],
+            ["右滑", "右滑", "swiping", "滑らせ", "밀면", "deslizar"],
+            ["LLM", "LLM", "LLM", "LLM", "LLM", "LLM"],
+            ["歌词", "歌詞", "lyrics", "歌詞", "가사", "letra"],
+            ["字体大小", "字體大小", "Font size", "フォントサイズ", "글자 크기", "tamaño de letra"],
+            ["设置", "設定", "Settings", "設定", "설정", "Ajustes"],
+            ["修复", "修復", "Fixed", "修正", "수정", "Corrección"],
+        ]
+        for (index, body) in v182Bodies.enumerated() {
             for phrases in imagineNotes {
                 expect(body.contains(phrases[index]), "v1.8.2 body \(index) mentions \(phrases[index])")
             }
@@ -882,30 +1339,84 @@ enum SectionDragMathTests {
         expect(joined.contains("韩语") || joined.contains("한국어") || joined.contains("coreano") || joined.contains("韓国語"), "mentions Korean")
         expect(joined.contains("西班牙语") || joined.contains("español") || joined.contains("Español") || joined.contains("スペイン語"), "mentions Spanish")
         expect(joined.contains("导出") || joined.contains("export") || joined.contains("書き出し") || joined.contains("내보내기") || joined.contains("exportar"), "mentions export button")
-        let columnNotes = [
-            ["右边栏", "右邊欄", "right column", "右カラム", "오른쪽 열", "columna derecha"],
-            ["宽度", "寬度", "width", "幅", "너비", "anchura"],
-            ["下往上", "下往上", "bottom", "下から", "아래", "abajo"],
-            ["文件处理", "檔案處理", "handle files", "ファイル", "파일", "archivos"],
+        let commandNotes = [
+            ["Command", "Command", "Command", "Command", "Command", "Command"],
+            ["全文段落", "全文段落", "every section", "曲全体", "곡 전체", "todas las secciones"],
+            ["韩语", "韓語", "Korean", "韓国語", "한국어", "coreano"],
+            ["西班牙语", "西班牙語", "Spanish", "スペイン語", "스페인어", "español"],
+            ["导出按钮", "匯出按鈕", "export button", "書き出しボタン", "내보내기 버튼", "botón de exportar"],
+            ["设置页", "設定頁", "settings page", "設定ページ", "설정 페이지", "página de ajustes"],
+            ["API Key", "API Key", "API Key", "API Key", "API Key", "API Key"],
         ]
         for (index, body) in previousBodies.enumerated() {
-            for phrases in columnNotes {
+            for phrases in commandNotes {
                 expect(body.contains(phrases[index]), "v1.8.1 body \(index) mentions \(phrases[index])")
             }
             expect(!body.contains("##"), "v1.8.1 source body \(index) has no markdown heading")
             expect(!body.contains("**"), "v1.8.1 source body \(index) has no markdown bold")
             expect(!body.contains("`"), "v1.8.1 source body \(index) has no backticks")
         }
-        let settingsNotes = [
-            ["关闭", "關閉", "close button", "閉じる", "닫기", "cerrar"],
-            ["跟随系统", "跟隨系統", "Follow System", "システムに合わせる", "시스템을 따름", "Seguir el sistema"],
-            ["列表", "列表", "list", "リスト", "목록", "lista"],
-            ["二级菜单", "二級選單", "second-level menu", "二次メニュー", "2단 메뉴", "segundo nivel"],
-            ["API Key", "API Key", "API key", "API キー", "API 키", "clave de API"],
+        // 带标版本（GT5 / Beta / Gamma / Extra …）已按数字版本合并，日志分段合并、取最新日期
+        expect(
+            ChangelogContent.entries.allSatisfy { ChangelogFold.numericStem($0.version) == $0.version },
+            "no letter-tagged versions are left in the source data"
+        )
+        let tagged = [
+            "Extra", "Beta", "Gamma", "Delta", "GT", "GT2", "GT3", "GT4", "GT5",
+            "Test", "BugStable", "Alpha", "RC",
         ]
-        for (index, body) in previousBodies.enumerated() {
-            for phrases in settingsNotes {
-                expect(body.contains(phrases[index]), "v1.8.1 body \(index) mentions \(phrases[index])")
+        for entry in ChangelogContent.entries {
+            for token in tagged {
+                expect(!entry.version.contains(token), "\(entry.version) heading carries no \(token) tag")
+            }
+        }
+        let v179 = ChangelogContent.entries.first { $0.version == "v1.7.9" }
+        expectEqual(v179?.date, "2026-06-25", "merged v1.7.9 takes the latest date of its builds")
+        expectEqual(ChangelogContent.entries.first { $0.version == "v1.7.10" }?.date, "2026-06-26", "merged v1.7.10 takes the latest date of its builds")
+        let v179Bodies = [
+            v179?.bodyMarkdown ?? "",
+            v179?.markdown(for: .english) ?? "",
+            v179?.markdown(for: .korean) ?? "",
+        ]
+        for (index, body) in v179Bodies.enumerated() {
+            let headings = body.components(separatedBy: "【").count - 1
+            expectEqual(headings, 3, "merged v1.7.9 body \(index) has one heading per section, not one per build")
+            expectEqual(body.filter { $0 == "•" }.count, 22, "merged v1.7.9 body \(index) keeps all 22 bullets")
+        }
+        // 手写的简体范本同样覆盖更早的条目
+        let templateRows: [(String, [[String]])] = [
+            ("v1.8.0", [
+                ["下载", "下載", "Download", "ダウンロード", "다운로드", "descarga"],
+                ["歌词预览", "歌詞預覽", "lyrics preview", "歌詞プレビュー", "가사 미리보기", "vista previa"],
+                ["笔记", "筆記", "notes", "メモ", "메모", "notas"],
+                ["译文", "譯文", "translation", "訳文", "번역", "traducción"],
+            ]),
+            ("v1.7.10", [
+                ["译文", "譯文", "translation", "訳文", "번역", "traducción"],
+                ["笔记", "筆記", "notes", "メモ", "메모", "notas"],
+                ["歌词文件", "歌詞檔", "lyric file", "歌詞ファイル", "가사 파일", "archivo de letra"],
+                ["拖动段落", "拖動段落", "sections are dragged", "セクションのドラッグ", "섹션을 끄는", "arrastrar secciones"],
+                ["纪念", "紀念", "In memory", "記念", "기념", "En memoria"],
+                ["十二周年", "十二週年", "twelfth anniversary", "十二周年", "12주년", "duodécimo aniversario"],
+            ]),
+        ]
+        for (version, phrasesList) in templateRows {
+            guard let row = ChangelogContent.entries.first(where: { $0.version == version }) else {
+                expect(false, "\(version) entry exists")
+                continue
+            }
+            let rowBodies = [
+                row.bodyMarkdown,
+                row.markdown(for: .traditionalChinese),
+                row.markdown(for: .english),
+                row.markdown(for: .japanese),
+                row.markdown(for: .korean),
+                row.markdown(for: .spanish),
+            ]
+            for (index, body) in rowBodies.enumerated() {
+                for phrases in phrasesList {
+                    expect(body.contains(phrases[index]), "\(version) body \(index) mentions \(phrases[index])")
+                }
             }
         }
         let forbidden = ["##", "**", "`", "swipeActions", "List(selection:)"]
@@ -968,6 +1479,7 @@ enum SectionDragMathTests {
         expect(sectionTranslate.system.contains("用户提示词优先于信达雅"), "translation reference ranks the user prompt above 信达雅")
         expect(sectionTranslate.system.contains("不要自行加戏"), "translation reference names the rule the prompt outranks")
         expect(sectionTranslate.system.contains("Notes 不是歌词"), "translation reference forbids treating notes as lyrics")
+        expect(sectionTranslate.system.contains("Ruby / 注音不是歌词"), "translation reference does not treat ruby as lyrics")
         expect(!sectionTranslate.system.contains("格律"), "translation reference is not the creative one")
         expect(sectionTranslate.user.contains("alpha line"), "section request includes that section")
         expect(!sectionTranslate.user.contains("beta line"), "section request does not include another section")
@@ -1343,6 +1855,271 @@ enum SectionDragMathTests {
         )
         expectEqual(untouched.sections[1].translation, "old chorus", "empty lyrics are not given a translation")
         expectEqual(untouched.sections[1].notes, "只在笔记里", "notes stay notes")
+
+        // MARK: Imagine furigana
+        expectEqual(ImagineWorkflow.phoneticOnly("し/よん"), "し", "candidate readings keep only the first kana")
+        expectEqual(ImagineWorkflow.hiraganaOnly("し/よん"), "し", "hiraganaOnly forwards to phoneticOnly")
+        expectEqual(ImagineWorkflow.phoneticOnly("トウキョウ"), "トウキョウ", "katakana is kept for gikun")
+        expectEqual(ImagineWorkflow.phoneticOnly("デジャヴ"), "デジャヴ", "vu katakana is kept")
+        expectEqual(ImagineWorkflow.phoneticOnly("ゴールデンウィーク"), "ゴールデンウィーク", "long-vowel katakana is kept")
+        expectEqual(ImagineWorkflow.phoneticOnly("とうkyo"), "とう", "latin is stripped")
+        expectEqual(ImagineWorkflow.phoneticOnly("とうきょう"), "とうきょう", "plain hiragana is kept")
+        var furiganaDoc = imagineDoc
+        furiganaDoc.sections[0].body = "東京は負けず劣らず"
+        furiganaDoc.sections[0].notes = "即視感按デジャヴ来读"
+        furiganaDoc.sections[1].body = "人"
+        let sectionFuri = ImagineWorkflow.compose(
+            action: .furigana,
+            scope: .section("s1"),
+            document: furiganaDoc,
+            targetLanguage: "",
+            userPrompt: ""
+        )!
+        expect(sectionFuri.system.contains("平假名"), "furigana reference requires hiragana by default")
+        expect(sectionFuri.system.contains("义训"), "furigana reference allows gikun")
+        expect(sectionFuri.system.contains("熟字训"), "furigana reference allows jukujikun")
+        expect(sectionFuri.system.contains("デジャヴ"), "furigana reference names 即視感 as katakana")
+        expect(sectionFuri.system.contains("禁止候选"), "furigana reference forbids candidates")
+        expect(sectionFuri.system.contains("｜"), "furigana reference uses ｜ pairs")
+        expect(!sectionFuri.system.contains("信达雅"), "furigana reference is not the translation one")
+        expect(sectionFuri.user.contains("東京は負けず劣らず"), "section furigana sends that section")
+        expect(sectionFuri.user.contains("即視感按デジャヴ来读"), "section furigana sends that section's notes")
+        expect(sectionFuri.user.contains("雨夜"), "section furigana sends ideas as context")
+        expect(!sectionFuri.user.contains("Section: s2"), "section furigana does not send the other section")
+        expect(!sectionFuri.user.contains("beta line"), "section furigana does not send the other section lyrics")
+        expect(!sectionFuri.user.contains("keep"), "section furigana does not send the other section's notes")
+        let wholeFuri = ImagineWorkflow.compose(
+            action: .furigana,
+            scope: .song,
+            document: furiganaDoc,
+            targetLanguage: "",
+            userPrompt: "用词的常见读音"
+        )!
+        expect(wholeFuri.user.contains("東京は負けず劣らず") && wholeFuri.user.contains("人"), "whole-song furigana sends every lyrics section")
+        expect(wholeFuri.user.contains("即視感按デジャヴ来读") && wholeFuri.user.contains("keep"), "whole-song furigana sends notes")
+        expect(wholeFuri.user.contains("雨夜"), "whole-song furigana sends ideas")
+        expect(wholeFuri.user.contains("用词的常见读音"), "furigana user prompt is included")
+        expect(ImagineWorkflow.compose(action: .furigana, scope: .section("s2"), document: blankLyricsDoc, targetLanguage: "", userPrompt: "") == nil, "empty lyrics are not sent for furigana")
+        let placedFuri = ImagineWorkflow.apply(
+            reply: """
+            Section: s1
+            Ruby:
+            東京｜とうきょう
+            負｜ま
+            劣｜おと
+            Section: s2
+            Ruby:
+            人｜ひと
+            """,
+            action: .furigana,
+            scope: .section("s1"),
+            document: furiganaDoc
+        )
+        expectEqual(placedFuri.sections[0].annotations.count, 3, "section furigana writes three readings")
+        expectEqual(placedFuri.sections[0].annotations[0].original, "東京", "first reading is 東京")
+        expectEqual(placedFuri.sections[0].annotations[0].phonetic, "とうきょう", "東京 reading is hiragana")
+        expectEqual(placedFuri.sections[0].annotations[0].rangeStart, 0, "東京 starts at 0")
+        expectEqual(placedFuri.sections[0].annotations[0].rangeLength, 2, "東京 length is 2")
+        expectEqual(placedFuri.sections[0].annotations[1].original, "負", "second reading is 負")
+        expectEqual(placedFuri.sections[0].annotations[1].rangeStart, 3, "負 follows 東京は")
+        expectEqual(placedFuri.sections[0].annotations[2].original, "劣", "third reading is 劣")
+        expectEqual(placedFuri.sections[0].body, "東京は負けず劣らず", "furigana does not rewrite lyrics")
+        expectEqual(placedFuri.sections[1].annotations.count, 0, "section furigana does not write the other section")
+        let candidateFuri = ImagineWorkflow.apply(
+            reply: "Section: s2\nRuby:\n人｜ひと/にん\n四｜し/よん",
+            action: .furigana,
+            scope: .section("s2"),
+            document: furiganaDoc
+        )
+        expectEqual(candidateFuri.sections[1].annotations.first?.phonetic ?? "", "ひと", "candidate slash keeps the first hiragana")
+        let skippedLatin = ImagineWorkflow.apply(
+            reply: "Section: s1\nRuby:\n東京｜Tokyo",
+            action: .furigana,
+            scope: .section("s1"),
+            document: furiganaDoc
+        )
+        expectEqual(skippedLatin.sections[0].annotations.count, 0, "latin-only readings are not written")
+        var gikunDoc = furiganaDoc
+        gikunDoc.sections[0].body = "即視感と黃金週"
+        let gikunFuri = ImagineWorkflow.apply(
+            reply: "Section: s1\nRuby:\n即視感｜デジャヴ\n黃金週｜ゴールデンウィーク",
+            action: .furigana,
+            scope: .section("s1"),
+            document: gikunDoc
+        )
+        expectEqual(gikunFuri.sections[0].annotations.count, 2, "gikun katakana readings are written")
+        expectEqual(gikunFuri.sections[0].annotations[0].phonetic, "デジャヴ", "即視感 reading is デジャヴ")
+        expectEqual(gikunFuri.sections[0].annotations[1].phonetic, "ゴールデンウィーク", "黃金週 reading is ゴールデンウィーク")
+        let okuri = ImagineWorkflow.placeRuby(
+            lyrics: "負けず劣らず",
+            pairs: [("負", "まけず"), ("劣", "おとらず")]
+        )
+        expectEqual(okuri.count, 2, "okurigana pairs are placed")
+        expectEqual(okuri[0].phonetic, "ま", "負 does not repeat けず")
+        expectEqual(okuri[0].original, "負", "負けず shrinks to 負")
+        expectEqual(okuri[1].phonetic, "おと", "劣 does not repeat らず")
+        let duplicate = ImagineWorkflow.placeRuby(
+            lyrics: "即視感デジャヴ",
+            pairs: [("即視感", "デジャヴ")]
+        )
+        expectEqual(duplicate.count, 0, "a reading that already sits beside the kanji is dropped")
+        let shrunk = ImagineWorkflow.placeRuby(
+            lyrics: "負けず劣らず",
+            pairs: [("負けず", "まけず")]
+        )
+        expectEqual(shrunk.count, 1, "負けず as original still places")
+        expectEqual(shrunk[0].original, "負", "leading kana is not part of the ruby base")
+        expectEqual(shrunk[0].phonetic, "ま", "reading drops the okurigana copied from the lyrics")
+        let songFuri = ImagineWorkflow.apply(
+            reply: "Section: s1\nRuby:\n東京｜とうきょう\nSection: s2\nRuby:\n人｜ひと",
+            action: .furigana,
+            scope: .song,
+            document: furiganaDoc
+        )
+        expectEqual(songFuri.sections[0].annotations.first?.phonetic ?? "", "とうきょう", "whole-song furigana writes s1")
+        expectEqual(songFuri.sections[1].annotations.first?.phonetic ?? "", "ひと", "whole-song furigana writes s2")
+        expect(wholeFuri.user.contains("不要只做第一段"), "whole-song furigana tells the model not to stop at the first section")
+        expect(wholeFuri.user.contains("Index: 1") && wholeFuri.user.contains("Index: 2"), "whole-song furigana numbers every lyrics section")
+        expect(sectionFuri.system.contains("不得漏段"), "furigana reference forbids skipping later sections")
+        expect(offCompose.user.contains("不要写成 [custom]"), "create without current format forbids [custom] markers")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: ""), "Verse", "blank marker is the default verse")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "[Chorus]"), "Chorus", "[Chorus] is Chorus")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "[Chorus 2]"), "Chorus", "[Chorus 2] stays Chorus")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "[Bridge]"), "Bridge", "[Bridge] is Bridge")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "主歌"), "Verse", "主歌 maps to Verse")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "副歌"), "Chorus", "副歌 maps to Chorus")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "[custom]"), "Custom", "[custom] stays Custom only when named that")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: "[Rap]"), "Custom", "unknown tags are Custom")
+        var numberedFuriDoc = uuidDoc
+        numberedFuriDoc.sections[0].body = "東京は空"
+        numberedFuriDoc.sections[1].body = "人"
+        let numberedFuri = ImagineWorkflow.apply(
+            reply: """
+            Section: 1
+            Ruby:
+            東京｜とうきょう
+            Section: 2
+            Ruby:
+            人｜ひと
+            """,
+            action: .furigana,
+            scope: .song,
+            document: numberedFuriDoc
+        )
+        expectEqual(numberedFuri.sections[0].annotations.first?.phonetic ?? "", "とうきょう", "Section: 1 furigana writes the first UUID section")
+        expectEqual(numberedFuri.sections[1].annotations.first?.phonetic ?? "", "ひと", "Section: 2 furigana writes the second UUID section")
+        let markerPlaced = ImagineWorkflow.apply(
+            reply: """
+            Section: 1
+            Marker: [Chorus]
+            Lyrics:
+            new front
+            Section: 2
+            Marker: [Bridge]
+            Lyrics:
+            new back
+            """,
+            action: .create,
+            scope: .song,
+            document: mixedFormat,
+            keepCurrentFormat: false
+        )
+        expectEqual(markerPlaced.sections[0].marker, "[Chorus]", "create copies Chorus Marker onto a new slot")
+        expectEqual(markerPlaced.sections[1].marker, "[Bridge]", "create copies Bridge Marker onto the next slot")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: markerPlaced.sections[0].marker), "Chorus", "Chorus Marker is not Custom")
+        expectEqual(ImagineWorkflow.sectionTypeName(fromMarker: markerPlaced.sections[1].marker), "Bridge", "Bridge Marker is not Custom")
+        expect(sectionCreate.system.contains("Ruby:"), "create reference includes a Ruby field")
+        expect(sectionCreate.system.contains("汉字｜读音"), "create reference uses 汉字｜读音")
+        expect(sectionCreate.system.contains("日语歌默认注音"), "create reference defaults Japanese songs to furigana")
+        expect(sectionCreate.system.contains("不注音"), "create reference lets the user skip furigana")
+        expect(sectionCreate.user.contains("这是日语歌"), "Japanese create asks for Ruby on every kanji section")
+        expect(sectionCreate.user.contains("都必须输出 Ruby"), "Japanese create does not treat Ruby as optional")
+        expect(ImagineWorkflow.isJapaneseLanguage("ja"), "ja is Japanese")
+        expect(ImagineWorkflow.isJapaneseLanguage("ja-JP"), "ja-JP is Japanese")
+        expect(ImagineWorkflow.isJapaneseLanguage("zh,ja"), "ja among languages is Japanese")
+        expect(ImagineWorkflow.isJapaneseLanguage("日本語"), "日本語 is Japanese")
+        expect(!ImagineWorkflow.isJapaneseLanguage("en"), "en is not Japanese")
+        expect(!ImagineWorkflow.isJapaneseLanguage(""), "empty language is not Japanese")
+        expect(ImagineWorkflow.asksToSkipFurigana("不注音"), "不注音 skips furigana")
+        expect(ImagineWorkflow.asksToSkipFurigana("不要ふりがな"), "不要ふりがな skips furigana")
+        expect(ImagineWorkflow.asksToSkipFurigana("no furigana please"), "no furigana skips furigana")
+        expect(!ImagineWorkflow.asksToSkipFurigana("更口语一点"), "an ordinary prompt does not skip furigana")
+        expect(!ImagineWorkflow.asksToSkipFurigana(""), "empty prompt does not skip furigana")
+        let skipFuri = ImagineWorkflow.compose(
+            action: .create,
+            scope: .song,
+            document: imagineDoc,
+            targetLanguage: "",
+            userPrompt: "不注音"
+        )!
+        expect(skipFuri.user.contains("禁止输出 Ruby"), "user saying 不注音 forbids Ruby")
+        expect(!skipFuri.user.contains("都必须输出 Ruby"), "skipping furigana does not demand Ruby")
+        var englishDoc = imagineDoc
+        englishDoc.languages = "en"
+        let englishCreate = ImagineWorkflow.compose(
+            action: .create,
+            scope: .song,
+            document: englishDoc,
+            targetLanguage: "",
+            userPrompt: ""
+        )!
+        expect(englishCreate.user.contains("不是日语则不要输出 Ruby"), "non-Japanese create does not require Ruby")
+        expect(!englishCreate.user.contains("这是日语歌"), "English songs are not treated as Japanese")
+        var blankLang = imagineDoc
+        blankLang.languages = ""
+        let blankLangCreate = ImagineWorkflow.compose(
+            action: .create,
+            scope: .song,
+            document: blankLang,
+            targetLanguage: "",
+            userPrompt: ""
+        )!
+        expect(blankLangCreate.user.contains("若写成日语"), "blank language still notes the Japanese default")
+        var annotatedDoc = furiganaDoc
+        annotatedDoc.sections[0].annotations = [
+            ImagineRuby(rangeStart: 0, rangeLength: 2, original: "東京", phonetic: "とうきょう")
+        ]
+        let createSeesRuby = ImagineWorkflow.compose(
+            action: .create,
+            scope: .section("s1"),
+            document: annotatedDoc,
+            targetLanguage: "",
+            userPrompt: ""
+        )!
+        expect(createSeesRuby.user.contains("東京｜とうきょう"), "create compose sends existing readings")
+        let furiSeesRuby = ImagineWorkflow.compose(
+            action: .furigana,
+            scope: .section("s1"),
+            document: annotatedDoc,
+            targetLanguage: "",
+            userPrompt: ""
+        )!
+        expect(furiSeesRuby.user.contains("東京｜とうきょう"), "furigana compose sends existing readings")
+        let droppedRuby = ImagineWorkflow.apply(
+            reply: "Section: s1\nLyrics:\n新しい歌詞",
+            action: .create,
+            scope: .section("s1"),
+            document: annotatedDoc
+        )
+        expectEqual(droppedRuby.sections[0].body, "新しい歌詞", "create can rewrite lyrics")
+        expectEqual(droppedRuby.sections[0].annotations.count, 0, "create that rewrites lyrics drops old readings")
+        let createdRuby = ImagineWorkflow.apply(
+            reply: "Section: s1\nLyrics:\n東京は空\nRuby:\n東京｜とうきょう",
+            action: .create,
+            scope: .section("s1"),
+            document: annotatedDoc
+        )
+        expectEqual(createdRuby.sections[0].body, "東京は空", "create with Ruby keeps the new lyrics")
+        expectEqual(createdRuby.sections[0].annotations.count, 1, "create with Ruby writes the reading")
+        expectEqual(createdRuby.sections[0].annotations[0].phonetic, "とうきょう", "create Ruby uses 汉字｜读音")
+        let songCreatedRuby = ImagineWorkflow.apply(
+            reply: "Section: s1\nLyrics:\n東京\nRuby:\n東京｜とうきょう\nSection: s2\nLyrics:\n人",
+            action: .create,
+            scope: .song,
+            document: annotatedDoc
+        )
+        expectEqual(songCreatedRuby.sections[0].annotations.first?.phonetic ?? "", "とうきょう", "whole-song create writes Ruby")
+        expectEqual(songCreatedRuby.sections[1].annotations.count, 0, "whole-song create drops readings when lyrics change without Ruby")
 
         let savedConnection = LLMConnection(baseURL: "https://api.deepseek.com", modelName: "", apiKey: "sk-test")
         let noModel = ImagineAPI.chatRequest(connection: savedConnection, system: sectionTranslate.system, user: sectionTranslate.user)!

@@ -12,7 +12,6 @@
 		A001000000000000000000A3 /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A3 /* Song.swift */; };
 		A001000000000000000000A4 /* SectionType.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A4 /* SectionType.swift */; };
 		A001000000000000000000A5 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A5 /* ThemeManager.swift */; };
-		A001000000000000000000A6 /* JapaneseFuriganaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */; };
 		A001000000000000000000A7 /* SongSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A7 /* SongSidebarView.swift */; };
 		A001000000000000000000A8 /* SongEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A8 /* SongEditorView.swift */; };
 		A001000000000000000000A9 /* SectionEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A9 /* SectionEditorView.swift */; };
@@ -30,7 +29,6 @@
 		A001000000000000000000B5 /* ChangelogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C8 /* ChangelogView.swift */; };
 		A001000000000000000000B6 /* DeleteConfirmator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000C9 /* DeleteConfirmator.swift */; };
 		A001000000000000000000D7 /* SystemSwitchToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D7 /* SystemSwitchToggle.swift */; };
-		A001000000000000000000D8 /* JapaneseFuriganaDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */; };
 		A001000000000000000000D9 /* LyricsPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D9 /* LyricsPreviewView.swift */; };
 		A001000000000000000000E1 /* TrashSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E1 /* TrashSound.swift */; };
 		A001000000000000000000E6 /* Metronome.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000E6 /* Metronome.swift */; };
@@ -47,6 +45,7 @@
 		A001000000000000000000ED /* SongUICopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000ED /* SongUICopy.swift */; };
 		A001000000000000000000EF /* ImagineWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EF /* ImagineWorkflow.swift */; };
 		A001000000000000000000EE /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000EE /* UpdateChecker.swift */; };
+		A001000000000000000000F0 /* LyricsRubyMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000F0 /* LyricsRubyMath.swift */; };
 /* End PBXBuildFile section */
 		A001000000000000000000D5 /* SongFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D5 /* SongFolder.swift */; };
 		A001000000000000000000D6 /* BeatPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000D6 /* BeatPreset.swift */; };
@@ -57,7 +56,6 @@
 		B001000000000000000000A3 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
 		B001000000000000000000A4 /* SectionType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionType.swift; sourceTree = "<group>"; };
 		B001000000000000000000A5 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
-		B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseFuriganaEngine.swift; sourceTree = "<group>"; };
 		B001000000000000000000A7 /* SongSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongSidebarView.swift; sourceTree = "<group>"; };
 		B001000000000000000000A8 /* SongEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongEditorView.swift; sourceTree = "<group>"; };
 		B001000000000000000000A9 /* SectionEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditorView.swift; sourceTree = "<group>"; };
@@ -78,7 +76,6 @@
 		B001000000000000000000C8 /* ChangelogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogView.swift; sourceTree = "<group>"; };
 		B001000000000000000000C9 /* DeleteConfirmator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConfirmator.swift; sourceTree = "<group>"; };
 		B001000000000000000000D7 /* SystemSwitchToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSwitchToggle.swift; sourceTree = "<group>"; };
-		B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseFuriganaDictionary.swift; sourceTree = "<group>"; };
 		B001000000000000000000D9 /* LyricsPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsPreviewView.swift; sourceTree = "<group>"; };
 		B001000000000000000000E1 /* TrashSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashSound.swift; sourceTree = "<group>"; };
 		B001000000000000000000E6 /* Metronome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Metronome.swift; sourceTree = "<group>"; };
@@ -95,6 +92,7 @@
 		B001000000000000000000ED /* SongUICopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongUICopy.swift; sourceTree = "<group>"; };
 		B001000000000000000000EF /* ImagineWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagineWorkflow.swift; sourceTree = "<group>"; };
 		B001000000000000000000EE /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		B001000000000000000000F0 /* LyricsRubyMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsRubyMath.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 		B001000000000000000000D5 /* SongFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongFolder.swift; sourceTree = "<group>"; };
 		B001000000000000000000D6 /* BeatPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatPreset.swift; sourceTree = "<group>"; };
@@ -167,8 +165,6 @@
 		D001000000000000000000A6 /* Engine */ = {
 			isa = PBXGroup;
 			children = (
-				B001000000000000000000A6 /* JapaneseFuriganaEngine.swift */,
-				B001000000000000000000D8 /* JapaneseFuriganaDictionary.swift */,
 				B001000000000000000000C6 /* SongExporter.swift */,
 				B001000000000000000000E1 /* TrashSound.swift */,
 				B001000000000000000000E6 /* Metronome.swift */,
@@ -178,6 +174,7 @@
 				B001000000000000000000EC /* ChangelogFold.swift */,
 				B001000000000000000000ED /* SongUICopy.swift */,
 				B001000000000000000000EF /* ImagineWorkflow.swift */,
+				B001000000000000000000F0 /* LyricsRubyMath.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -363,7 +360,6 @@
 				A001000000000000000000D6 /* BeatPreset.swift in Sources */,
 				A001000000000000000000A4 /* SectionType.swift in Sources */,
 				A001000000000000000000A5 /* ThemeManager.swift in Sources */,
-				A001000000000000000000A6 /* JapaneseFuriganaEngine.swift in Sources */,
 				A001000000000000000000A7 /* SongSidebarView.swift in Sources */,
 				A001000000000000000000A8 /* SongEditorView.swift in Sources */,
 				A001000000000000000000A9 /* SectionEditorView.swift in Sources */,
@@ -380,7 +376,6 @@
 				A001000000000000000000B5 /* ChangelogView.swift in Sources */,
 				A001000000000000000000B6 /* DeleteConfirmator.swift in Sources */,
 				A001000000000000000000D7 /* SystemSwitchToggle.swift in Sources */,
-				A001000000000000000000D8 /* JapaneseFuriganaDictionary.swift in Sources */,
 				A001000000000000000000D9 /* LyricsPreviewView.swift in Sources */,
 				A001000000000000000000E1 /* TrashSound.swift in Sources */,
 				A001000000000000000000E6 /* Metronome.swift in Sources */,
@@ -393,6 +388,7 @@
 				A001000000000000000000ED /* SongUICopy.swift in Sources */,
 				A001000000000000000000EF /* ImagineWorkflow.swift in Sources */,
 				A001000000000000000000EE /* UpdateChecker.swift in Sources */,
+				A001000000000000000000F0 /* LyricsRubyMath.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -539,7 +535,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.2;
+				MARKETING_VERSION = 1.8.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -567,7 +563,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.2;
+				MARKETING_VERSION = 1.8.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

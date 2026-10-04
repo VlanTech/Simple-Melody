@@ -36,6 +36,12 @@ struct SongEditorView: View {
     @State private var imagineMessage: String?
     @State private var imagineTask: Task<Void, Never>?
     @StateObject private var imagineCancel = ImagineCancelMonitor()
+    @AppStorage("export.includeLyrics") private var exportLyrics = true
+    @AppStorage("export.includeTranslation") private var exportTranslation = true
+    @AppStorage("export.includeRuby") private var exportRuby = true
+    @AppStorage("export.includeNotes") private var exportNotes = true
+    @AppStorage("export.includeIdeas") private var exportIdeas = true
+    @State private var showExportDialog = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -69,6 +75,25 @@ struct SongEditorView: View {
                 )
             } onCancel: {
                 imagineRequest = nil
+            }
+        }
+        .sheet(isPresented: $showExportDialog) {
+            ExportDialog(
+                includeLyrics: $exportLyrics,
+                includeTranslation: $exportTranslation,
+                includeRuby: $exportRuby,
+                includeNotes: $exportNotes,
+                includeIdeas: $exportIdeas
+            ) { options in
+                showExportDialog = false
+                DispatchQueue.main.async {
+                    exportToText(options: options)
+                }
+            } onCopyAll: {
+                showExportDialog = false
+                copyFullBodyToPasteboard()
+            } onCancel: {
+                showExportDialog = false
             }
         }
         .overlay {
@@ -143,37 +168,20 @@ struct SongEditorView: View {
                     .buttonStyle(.plain)
                     .help(L("Imagine"))
                     .accessibilityLabel(L("Imagine"))
-                    Menu {
-                        Button {
-                            exportToText()
-                        } label: {
-                            Label(L("导出为文本文件（含全部信息）"), systemImage: "square.and.arrow.up")
-                        }
-                        Button {
-                            let pb = NSPasteboard.general
-                            pb.clearContents()
-                            pb.setString(song.fullBody, forType: .string)
-                        } label: {
-                            Label(L("复制全文到剪贴板"), systemImage: "doc.on.doc")
-                        }
+                    Button {
+                        showExportDialog = true
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "square.and.arrow.up")
-                                .imageScale(.small)
-                            Text(L("导出"))
-                                .appFont(12, weight: .medium)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
-                        .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1))
-                        .foregroundStyle(Color.accentColor)
+                        Image(systemName: "square.and.arrow.up")
+                            .appFont(14, weight: .semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(Capsule().fill(Color.blue))
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help(L("导出为文本文件（含全部信息）"))
+                    .buttonStyle(.plain)
+                    .help(L("导出"))
+                    .accessibilityLabel(L("导出"))
                 }
-                .frame(minWidth: 148, minHeight: 32, alignment: .trailing)
+                .frame(minWidth: 64, minHeight: 32, alignment: .trailing)
             }
 
             HStack(spacing: 14) {
@@ -612,21 +620,28 @@ struct SongEditorView: View {
         try? context.save()
     }
 
-    /// 导出为完整文本文件（v1.2：含元信息、歌词、笔记、灵感、设定）
-    private func exportToText() {
+    private func copyFullBodyToPasteboard() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(song.fullBody, forType: .string)
+    }
+
+    /// 导出为文本文件。默认含全部信息；对话框按勾选写回，仍可再导入。
+    private func exportToText(options: SongExportOptions = .all) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
         let safeTitle = song.title.isEmpty ? L("未命名") : song.title
         panel.nameFieldStringValue = "\(safeTitle)_\(SongExporter.filenameTimestamp()).smelody.txt"
-        // 本地化按钮
         panel.prompt = L("保存")
-        panel.message = L("将歌词的全部信息导出为文本文件")
+        panel.message = options == .all
+            ? L("将歌词的全部信息导出为文本文件")
+            : L("导出选中内容")
         panel.title = L("导出歌词")
         panel.canCreateDirectories = true
 
         panel.begin { response in
             if response == .OK, let url = panel.url {
-                let text = SongExporter.exportFullText(song)
+                let text = SongExporter.exportFullText(song, options: options)
                 do {
                     try text.write(to: url, atomically: true, encoding: .utf8)
                 } catch {
@@ -826,7 +841,6 @@ struct DraggableSectionWrapper: View {
         SectionEditorView(
             section: section,
             languages: languages,
-            song: song,
             activeSectionID: $activeSectionID,
             focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
             sidePanel: $sidePanel,
@@ -893,19 +907,27 @@ extension SongEditorView {
             ideaItems: song.orderedIdeas.map {
                 ImagineIdea(id: $0.id.uuidString, ideaType: $0.ideaType, content: $0.content)
             },
-            sections: song.orderedSections.map {
+            sections: song.orderedSections.map { section in
                 ImagineSection(
-                    id: $0.id.uuidString,
-                    marker: $0.marker,
-                    body: $0.body,
-                    translation: $0.translation,
-                    notes: $0.notes
+                    id: section.id.uuidString,
+                    marker: section.marker,
+                    body: section.body,
+                    translation: section.translation,
+                    notes: section.notes,
+                    annotations: section.orderedAnnotations.map {
+                        ImagineRuby(
+                            rangeStart: $0.rangeStart,
+                            rangeLength: $0.rangeLength,
+                            original: $0.original,
+                            phonetic: $0.phonetic
+                        )
+                    }
                 )
             }
         )
     }
 
-    fileprivate func writeImagine(_ document: ImagineDocument) {
+    fileprivate func writeImagine(_ document: ImagineDocument, replaceAnnotations: Bool = false) {
         let languages = document.languages
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -928,19 +950,28 @@ extension SongEditorView {
                 existing.body = snap.body
                 existing.translation = snap.translation
                 existing.notes = snap.notes
+                if replaceAnnotations {
+                    replaceSectionAnnotations(existing, with: snap.annotations)
+                }
                 kept.append(existing)
                 seen.insert(existing.id)
             } else {
+                let typeName = ImagineWorkflow.sectionTypeName(fromMarker: snap.marker)
+                let tag = snap.marker.trimmingCharacters(in: .whitespacesAndNewlines)
                 let created = SongSection(
                     order: kept.count,
-                    typeName: "Custom",
+                    typeName: typeName,
                     body: snap.body,
-                    customTag: snap.marker,
+                    customTag: tag,
                     notes: snap.notes,
                     translation: snap.translation
                 )
+                applyImagineMarker(created, marker: snap.marker)
                 created.song = song
                 song.sections.append(created)
+                if replaceAnnotations {
+                    replaceSectionAnnotations(created, with: snap.annotations)
+                }
                 kept.append(created)
                 seen.insert(created.id)
             }
@@ -979,6 +1010,42 @@ extension SongEditorView {
         try? context.save()
     }
 
+    fileprivate func applyImagineMarker(_ section: SongSection, marker: String) {
+        let trimmed = marker.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let typeName = ImagineWorkflow.sectionTypeName(fromMarker: trimmed)
+        section.typeName = typeName
+        section.customTag = trimmed
+        section.marker = trimmed
+        if typeName == "Custom" {
+            let inner = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "[] "))
+            if section.customName.isEmpty, !inner.isEmpty {
+                section.customName = inner
+            }
+        }
+        if let preset = SectionTypePreset.find(named: typeName) {
+            section.colorHex = preset.colorHex
+        }
+    }
+
+    fileprivate func replaceSectionAnnotations(_ section: SongSection, with items: [ImagineRuby]) {
+        for anno in section.annotations {
+            context.delete(anno)
+        }
+        for item in items {
+            let anno = PronunciationAnnotation(
+                rangeStart: item.rangeStart,
+                rangeLength: item.rangeLength,
+                original: item.original,
+                phonetic: item.phonetic,
+                language: "ja",
+                isAutoGenerated: true
+            )
+            anno.section = section
+            section.annotations.append(anno)
+        }
+    }
+
     fileprivate func performImagine(
         action: ImagineAction,
         targetLanguage: String,
@@ -997,9 +1064,13 @@ extension SongEditorView {
             userPrompt: prompt,
             keepCurrentFormat: keepCurrentFormat
         ) else {
-            imagineMessage = action == .translate
-                ? L("没有歌词的段落不会翻译，笔记也不会被当成歌词")
-                : L("回复格式无法识别，没有改动歌词")
+            if action == .translate {
+                imagineMessage = L("没有歌词的段落不会翻译，笔记也不会被当成歌词")
+            } else if action == .furigana {
+                imagineMessage = L("没有歌词的段落不会注音")
+            } else {
+                imagineMessage = L("回复格式无法识别，没有改动歌词")
+            }
             return
         }
         guard let request = ImagineAPI.chatRequest(connection: saved, system: composed.system, user: composed.user) else {
@@ -1029,7 +1100,7 @@ extension SongEditorView {
                     } else if outcome.document == document {
                         imagineMessage = L("回复格式无法识别，没有改动歌词")
                     } else {
-                        writeImagine(outcome.document)
+                        writeImagine(outcome.document, replaceAnnotations: action != .translate)
                     }
                 case .failure(.cancelled):
                     break
@@ -1091,20 +1162,10 @@ private struct ImagineDialog: View {
             Picker(L("Imagine"), selection: $action) {
                 Text(L("翻译")).tag(ImagineAction.translate)
                 Text(L("创意")).tag(ImagineAction.create)
+                Text(L("注音")).tag(ImagineAction.furigana)
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
-
-            HStack(spacing: 8) {
-                Image(systemName: "circle")
-                    .foregroundStyle(.tertiary)
-                Text(L("注音"))
-                Text(L("即将推出"))
-                    .foregroundStyle(.secondary)
-            }
-            .font(.callout)
-            .disabled(true)
-            .opacity(0.55)
 
             if action == .create && wholeSong {
                 Toggle(L("依照当前格式"), isOn: $keepCurrentFormat)
@@ -1131,7 +1192,7 @@ private struct ImagineDialog: View {
                 Button(L("取消"), action: onCancel)
                     .keyboardShortcut(.cancelAction)
                 Button(L("开始")) {
-                    if action == .create {
+                    if action == .create || action == .furigana {
                         showCreateWarning = true
                     } else {
                         startImagine()
@@ -1143,12 +1204,22 @@ private struct ImagineDialog: View {
         }
         .padding(20)
         .frame(width: AppFontMetrics.dialogWidth)
-        .alert(L("创意可能无法撤销或改错"), isPresented: $showCreateWarning) {
+        .alert(changeWarningTitle, isPresented: $showCreateWarning) {
             Button(L("取消"), role: .cancel) {}
             Button(L("继续")) { startImagine() }
         } message: {
-            Text(L("创意会改动歌词，可能无法撤销或出现错误。确定要继续吗？"))
+            Text(changeWarningMessage)
         }
+    }
+
+    private var changeWarningTitle: String {
+        action == .furigana ? L("注音可能无法撤销或改错") : L("创意可能无法撤销或改错")
+    }
+
+    private var changeWarningMessage: String {
+        action == .furigana
+            ? L("注音会改动读音，可能无法撤销或出现错误。确定要继续吗？")
+            : L("创意会改动歌词，可能无法撤销或出现错误。确定要继续吗？")
     }
 
     private func startImagine() {
@@ -1156,6 +1227,86 @@ private struct ImagineDialog: View {
             ImagineLanguageMemory.remember(targetLanguage)
         }
         onRun(action, targetLanguage, prompt, keepCurrentFormat)
+    }
+}
+
+private struct ExportDialog: View {
+    enum Kind: String, CaseIterable, Identifiable, Hashable {
+        case allFile
+        case selectedFile
+        case copyAll
+        var id: String { rawValue }
+    }
+
+    @Binding var includeLyrics: Bool
+    @Binding var includeTranslation: Bool
+    @Binding var includeRuby: Bool
+    @Binding var includeNotes: Bool
+    @Binding var includeIdeas: Bool
+    let onExportFile: (SongExportOptions) -> Void
+    let onCopyAll: () -> Void
+    let onCancel: () -> Void
+
+    @State private var kind: Kind = .allFile
+
+    private var selectedOptions: SongExportOptions {
+        SongExportOptions(
+            lyrics: includeLyrics,
+            translation: includeTranslation,
+            ruby: includeRuby,
+            notes: includeNotes,
+            ideas: includeIdeas
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(L("导出"))
+                .font(.title3.weight(.semibold))
+
+            Picker(L("导出"), selection: $kind) {
+                Text(L("导出为文本文件（含全部信息）")).tag(Kind.allFile)
+                Text(L("按内容导出")).tag(Kind.selectedFile)
+                Text(L("复制全文到剪贴板")).tag(Kind.copyAll)
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+
+            if kind == .selectedFile {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(L("歌词正文"), isOn: $includeLyrics)
+                    Toggle(L("翻译"), isOn: $includeTranslation)
+                    Toggle(L("注音"), isOn: $includeRuby)
+                    Toggle(L("段落笔记"), isOn: $includeNotes)
+                    Toggle(L("灵感与设定"), isOn: $includeIdeas)
+                    if !selectedOptions.includesAnything {
+                        Text(L("至少勾选一项再导出"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button(L("取消"), action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button(kind == .copyAll ? L("复制") : L("导出")) {
+                    switch kind {
+                    case .allFile:
+                        onExportFile(.all)
+                    case .selectedFile:
+                        onExportFile(selectedOptions)
+                    case .copyAll:
+                        onCopyAll()
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(kind == .selectedFile && !selectedOptions.includesAnything)
+            }
+        }
+        .padding(20)
+        .frame(width: AppFontMetrics.dialogWidth)
     }
 }
 
@@ -1237,7 +1388,6 @@ struct SwipeDeleteSectionWrapper: View {
             SectionEditorView(
                 section: section,
                 languages: languages,
-                song: song,
                 activeSectionID: $activeSectionID,
                 focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
                 sidePanel: $sidePanel,

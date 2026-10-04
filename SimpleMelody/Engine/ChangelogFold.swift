@@ -1,5 +1,7 @@
 // Engine/ChangelogFold.swift
 // v1.8.0: display-only fold of letter-tagged changelog rows into numeric stems.
+// The source data under ChangelogView is already merged into numeric versions,
+// so this stays as a safety net for any tagged row that shows up again.
 
 import Foundation
 

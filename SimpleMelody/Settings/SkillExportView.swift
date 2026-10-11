@@ -1,4 +1,3 @@
-// Settings/SkillExportView.swift
 // v1.7.6 Beta: 技能炼成窗口
 // 展示两个 Skill（词炼成 + 曲炼成），提供"导出"按钮让用户保存为 SKILL.md
 // 类似 ChangelogView 的窗口格式 + 醒目血红色警示

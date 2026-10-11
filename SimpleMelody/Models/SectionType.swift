@@ -1,4 +1,3 @@
-// Models/SectionType.swift
 // 段落类型预设
 // v1.4: localizedName 改为调用 L(nameKey) 实现 4 语言切换
 

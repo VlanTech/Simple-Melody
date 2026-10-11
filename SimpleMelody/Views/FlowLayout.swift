@@ -1,4 +1,3 @@
-// Views/FlowLayout.swift
 // 流式布局（用于注音 chips 显示）
 
 import SwiftUI

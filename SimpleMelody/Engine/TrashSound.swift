@@ -1,4 +1,3 @@
-// Engine/TrashSound.swift
 // v1.7.4 Beta: 删除操作播放系统 trash 音效
 //
 // macOS 没有公开的 trash 系统音效 API（系统直接合成 trash 声音，不导出公共 sound 文件）。

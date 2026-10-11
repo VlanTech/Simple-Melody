@@ -1,4 +1,3 @@
-// Views/LyricsPreview/LyricsPreviewView.swift
 // 歌词预览视图（v1.7）
 // 设计原则：简洁、像音乐播放器、可滑动、与编辑区域联动
 
@@ -25,8 +24,7 @@ struct LyricsPreviewView: View {
                 }
                 .padding(.bottom, 60)
             }
-            // v1.7.9 Delta+: panel 自身限定最小宽度 320（不被外层 NavigationSplitView 拖窄挤压）
-            .frame(minWidth: 320, idealWidth: 380, maxWidth: 500)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color(NSColor.textBackgroundColor))
             .onChange(of: activeSectionID) { _, new in
                 guard let id = new else { return }

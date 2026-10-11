@@ -1,5 +1,4 @@
-// Settings/UpdateChecker.swift
-// v1.8.0: GitHub releases/latest fetch. Launch is silent unless remote is newer.
+// 拉取远端最新版本。启动时只有远端更新才提示。
 
 import Foundation
 import AppKit

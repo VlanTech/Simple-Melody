@@ -1,4 +1,3 @@
-// Models/BeatPreset.swift
 // v1.6: 节拍预设（用于下拉选择）
 
 import Foundation

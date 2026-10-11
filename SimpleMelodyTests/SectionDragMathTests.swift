@@ -1,11 +1,3 @@
-// SimpleMelodyTests/SectionDragMathTests.swift
-// Compiles against the shipped Engine/SectionDragMath.swift (not a reimplementation).
-//
-//   swiftc -o section-drag-tests \
-//     SimpleMelody/Engine/SectionDragMath.swift \
-//     SimpleMelodyTests/SectionDragMathTests.swift
-//   ./section-drag-tests
-
 import Foundation
 import CoreGraphics
 import AppKit
@@ -31,7 +23,7 @@ enum SectionDragMathTests {
             expect(actual == expected, "\(message)  actual=\(actual) expected=\(expected)")
         }
 
-        // Shared IDs for reorder cases
+        // 重排用例共用这些编号。
         let a = UUID(uuidString: "00000000-0000-0000-0000-00000000000A")!
         let b = UUID(uuidString: "00000000-0000-0000-0000-00000000000B")!
         let c = UUID(uuidString: "00000000-0000-0000-0000-00000000000C")!
@@ -40,7 +32,7 @@ enum SectionDragMathTests {
         let ordered = [a, b, c, d, e]
         let mid: CGFloat = 40
 
-        // MARK: insert before / after (the v1.7.10 Extra contract)
+        // 中线以上插到目标之前，中线及以下插到后面。
 
         expect(SectionDragMath.insertsBefore(dropY: 10, targetMidY: mid), "drop above midpoint inserts before")
         expect(!SectionDragMath.insertsBefore(dropY: 50, targetMidY: mid), "drop below midpoint inserts after")
@@ -75,7 +67,7 @@ enum SectionDragMathTests {
             "targetIndex == count is nil"
         )
 
-        // MARK: reorderedIDs — above midpoint → before (old code always used targetIndex+1)
+        // 中线以上插到目标之前。旧实现总是用目标下标加一。
 
         expectEqual(
             SectionDragMath.reorderedIDs(
@@ -126,7 +118,7 @@ enum SectionDragMathTests {
             "drag E onto A above midpoint → E A B C D"
         )
 
-        // MARK: empty / self-drop no-ops
+        // 空拖动和拖到自己身上都不改顺序。
 
         expect(
             SectionDragMath.reorderedIDs(
@@ -158,7 +150,121 @@ enum SectionDragMathTests {
             "missing target is a no-op"
         )
 
-        // Multi-drag preserves original relative order
+        // 开关开启后的插入，以及横条归段落列表还是曲目库。都调用已发布的判定。
+
+        expect(
+            SectionDragMath.insertsBefore(dropY: 10, targetMidY: mid)
+                && SectionDragMath.reorderedIDs(
+                    orderedIDs: ordered, draggedIDs: [c], targetID: b,
+                    dropY: 10, targetMidY: mid
+                ) == [a, c, b, d, e],
+            "上半在前"
+        )
+        expect(
+            !SectionDragMath.insertsBefore(dropY: mid, targetMidY: mid)
+                && SectionDragMath.reorderedIDs(
+                    orderedIDs: ordered, draggedIDs: [c], targetID: b,
+                    dropY: mid, targetMidY: mid
+                ) == [a, b, c, d, e],
+            "中线在后"
+        )
+        expect(
+            !SectionDragMath.insertsBefore(dropY: mid + 1, targetMidY: mid)
+                && SectionDragMath.reorderedIDs(
+                    orderedIDs: ordered, draggedIDs: [c], targetID: b,
+                    dropY: mid + 1, targetMidY: mid
+                ) == [a, b, c, d, e],
+            "下半在后"
+        )
+        expect(
+            SectionDragMath.reorderedIDs(
+                orderedIDs: ordered, draggedIDs: [b], targetID: b,
+                dropY: 10, targetMidY: mid
+            ) == nil,
+            "只拖到自己身上顺序不变"
+        )
+
+        let sectionSides = SectionDragMath.reorderLineSides(for: .section)
+        expect(!sectionSides.songLibrary, "拖的是段落时曲目库不拥有横条")
+        expect(sectionSides.sectionList, "拖的是段落时段落列表拥有横条")
+        let songSides = SectionDragMath.reorderLineSides(for: .song)
+        expect(songSides.songLibrary, "拖的是歌曲时曲目库拥有横条")
+        expect(!songSides.sectionList, "拖的是歌曲时段落列表不拥有横条")
+        let idleSides = SectionDragMath.reorderLineSides(for: .none)
+        expect(!idleSides.songLibrary && !idleSides.sectionList, "没有在拖段落或歌曲时两侧都不拥有横条")
+
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: true,
+                pasteboardTypeIDs: [SectionDragMath.sectionIDTypeIdentifier],
+                pasteboardStrings: [],
+                pasteboardChangeIsFresh: true
+            ),
+            .section,
+            "新的段落类型优先于歌曲行"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: false,
+                pasteboardTypeIDs: ["public.utf8-plain-text"],
+                pasteboardStrings: ["{\"id\":\"\(a.uuidString)\"}"],
+                pasteboardChangeIsFresh: true
+            ),
+            .section,
+            "新的段落 JSON 是段落拖动"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: true,
+                pasteboardTypeIDs: [],
+                pasteboardStrings: [],
+                pasteboardChangeIsFresh: false
+            ),
+            .song,
+            "按下点在歌曲行里是歌曲拖动"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: false,
+                pasteboardTypeIDs: ["public.utf8-plain-text"],
+                pasteboardStrings: [a.uuidString],
+                pasteboardChangeIsFresh: true
+            ),
+            .none,
+            "按下点不在歌曲行时，歌曲编号剪贴板也不让曲目库认领横条"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: false,
+                pasteboardTypeIDs: ["public.utf8-plain-text"],
+                pasteboardStrings: [a.uuidString],
+                pasteboardChangeIsFresh: false
+            ),
+            .none,
+            "过期的拖放剪贴板不当成新的歌曲拖动"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: false,
+                pasteboardTypeIDs: ["public.utf8-plain-text"],
+                pasteboardStrings: ["verse lyrics"],
+                pasteboardChangeIsFresh: true
+            ),
+            .none,
+            "歌词选区拖动不是歌曲重排"
+        )
+        expectEqual(
+            SectionDragMath.reorderDragSubject(
+                pointerBeganInsideSongRow: true,
+                pasteboardTypeIDs: [SectionDragMath.sectionIDTypeIdentifier],
+                pasteboardStrings: [],
+                pasteboardChangeIsFresh: false
+            ),
+            .song,
+            "过期的段落类型不盖过歌曲行"
+        )
+
+        // 多选拖动保持原来的相对顺序。
         expectEqual(
             SectionDragMath.reorderedIDs(
                 orderedIDs: ordered, draggedIDs: [a, c], targetID: d,
@@ -168,9 +274,236 @@ enum SectionDragMathTests {
             "multi-drag A+C onto D after → B D A C E"
         )
 
-        // MARK: auto-scroll edge (window coords, origin bottom-left)
+        // 曲目库同一组歌曲。hidden 代表搜索框没显示出来、但仍在这组里的歌。
+        let hidden = UUID(uuidString: "00000000-0000-0000-0000-0000000000AA")!
+        let library = [a, hidden, b, c, d]
+        let rowMid: CGFloat = 36
 
-        let scroll = CGRect(x: 100, y: 200, width: 300, height: 400) // maxY = 600
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [c], targetID: b,
+                dropY: 10, targetMidY: rowMid
+            ),
+            [a, hidden, c, b, d],
+            "song upper-half drop inserts immediately before the target"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [d], targetID: b,
+                dropY: rowMid, targetMidY: rowMid
+            ),
+            [a, hidden, b, d, c],
+            "song midline drop inserts immediately after the target"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [c], targetID: b,
+                dropY: 40, targetMidY: rowMid
+            ),
+            [a, hidden, b, c, d],
+            "song lower-half drop inserts immediately after the target"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [a], targetID: d,
+                dropY: 80, targetMidY: rowMid
+            ),
+            [hidden, b, c, d, a],
+            "song drop on the last sibling's lower half places it after the last"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [d], targetID: a,
+                dropY: 1, targetMidY: rowMid
+            ),
+            [d, a, hidden, b, c],
+            "song drop on the first sibling's upper half places it before the first"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [b], targetID: b,
+                dropY: 10, targetMidY: rowMid
+            ),
+            library,
+            "song payload that is only the target returns the original order"
+        )
+        expectEqual(
+            SectionDragMath.reorderedSiblingIDs(
+                orderedIDs: library, draggedIDs: [a, c], targetID: d,
+                dropY: 80, targetMidY: rowMid
+            ),
+            [hidden, b, d, a, c],
+            "two dragged songs keep their prior relative order and songs not dragged, including search-hidden, keep theirs"
+        )
+
+        expectEqual(
+            SectionDragMath.sectionIDs(after: .up, orderedIDs: ordered, movingID: c),
+            [a, c, b, d, e],
+            "move section up swaps with the previous sibling"
+        )
+        expectEqual(
+            SectionDragMath.sectionIDs(after: .down, orderedIDs: ordered, movingID: c),
+            [a, b, d, c, e],
+            "move section down swaps with the next sibling"
+        )
+        expectEqual(
+            SectionDragMath.sectionIDs(after: .top, orderedIDs: ordered, movingID: d),
+            [d, a, b, c, e],
+            "move section to top places it first and keeps the others"
+        )
+        expectEqual(
+            SectionDragMath.sectionIDs(after: .bottom, orderedIDs: ordered, movingID: b),
+            [a, c, d, e, b],
+            "move section to bottom places it last and keeps the others"
+        )
+        expect(
+            SectionDragMath.sectionIDs(after: .up, orderedIDs: ordered, movingID: a) == nil,
+            "move up at the first section does not change order"
+        )
+        expect(
+            SectionDragMath.sectionIDs(after: .down, orderedIDs: ordered, movingID: e) == nil,
+            "move down at the last section does not change order"
+        )
+        expect(
+            SectionDragMath.sectionIDs(after: .top, orderedIDs: ordered, movingID: a) == nil,
+            "move to top when already first does not change order"
+        )
+        expect(
+            SectionDragMath.sectionIDs(after: .bottom, orderedIDs: ordered, movingID: e) == nil,
+            "move to bottom when already last does not change order"
+        )
+        expect(
+            SectionDragMath.sectionIDs(after: .up, orderedIDs: ordered, movingID: UUID()) == nil,
+            "moving a section that is not in the song does nothing"
+        )
+
+        // 同一栏两首之间只留上一首的下沿。顶头、垫底的落点更宽。
+        func lineWinner(_ id: UUID, _ before: Bool) -> SectionDragMath.SongReorderLineWinner? {
+            SectionDragMath.SongReorderLineWinner(id: id, insertsBefore: before)
+        }
+        let column = UUID(uuidString: "00000000-0000-0000-0000-0000000000F1")!
+        let otherColumn = UUID(uuidString: "00000000-0000-0000-0000-0000000000F2")!
+        func songSpan(
+            _ id: UUID,
+            minY: CGFloat,
+            height: CGFloat,
+            top: Bool = false,
+            bottom: Bool = false,
+            groupID: UUID = column
+        ) -> SectionDragMath.SongReorderLineSpan {
+            SectionDragMath.SongReorderLineSpan(
+                id: id,
+                minY: minY,
+                height: height,
+                groupID: groupID,
+                isGroupTop: top,
+                isGroupBottom: bottom
+            )
+        }
+        let upperSpan = songSpan(a, minY: 0, height: 40, top: true)
+        let lowerSpan = songSpan(b, minY: 40, height: 40, bottom: true)
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 40, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, false),
+            "shared edge draws only the upper row's bottom, not also the lower row's top"
+        )
+        let gapUpper = songSpan(a, minY: 0, height: 40, top: true)
+        let gapLower = songSpan(b, minY: 48, height: 40, bottom: true)
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 44, rows: [gapUpper, gapLower]),
+            lineWinner(a, false),
+            "a gap equally close to both songs draws one line on the upper row's bottom"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 46, rows: [gapUpper, gapLower]),
+            lineWinner(a, false),
+            "a gap nearer the lower song still uses the upper row's bottom, not the lower row's top"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(
+                pointerY: 40,
+                rows: [
+                    songSpan(a, minY: 0, height: 50, top: true),
+                    songSpan(b, minY: 30, height: 50, bottom: true)
+                ]
+            ),
+            lineWinner(a, false),
+            "overlapping song rows still produce one line"
+        )
+        expect(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 200, rows: [upperSpan, lowerSpan]) == nil,
+            "a pointer far from both songs draws no line"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 10, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, true),
+            "upper part of the top song draws only that song's top"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 24, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, true),
+            "top song keeps the before-zone past the midpoint"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 28, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, false),
+            "top song's lower third is the single gap line under it"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 44, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, false),
+            "bottom song's upper third uses the previous song's bottom, not its own top"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 60, rows: [upperSpan, lowerSpan]),
+            lineWinner(b, false),
+            "bottom song's after-zone starts above the midpoint"
+        )
+        let middleTop = songSpan(a, minY: 0, height: 40, top: true)
+        let middle = songSpan(b, minY: 48, height: 40)
+        let middleBottom = songSpan(c, minY: 96, height: 40, bottom: true)
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 55, rows: [middleTop, middle, middleBottom]),
+            lineWinner(a, false),
+            "a middle song's upper half does not draw its own top line"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 80, rows: [middleTop, middle, middleBottom]),
+            lineWinner(b, false),
+            "a middle song's lower half draws only its bottom line"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: -28, rows: [upperSpan, lowerSpan]),
+            lineWinner(a, true),
+            "slack above the top song still counts as insert before it"
+        )
+        expect(
+            SectionDragMath.exclusiveReorderClaim(pointerY: -29, rows: [upperSpan, lowerSpan]) == nil,
+            "past the top slack draws no line"
+        )
+        expectEqual(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 108, rows: [upperSpan, lowerSpan]),
+            lineWinner(b, false),
+            "slack below the bottom song still counts as insert after it"
+        )
+        let otherTop = songSpan(b, minY: 120, height: 40, top: true, groupID: otherColumn)
+        let columnBottom = songSpan(a, minY: 0, height: 40, bottom: true)
+        expect(
+            SectionDragMath.exclusiveReorderClaim(pointerY: 80, rows: [columnBottom, otherTop]) == nil,
+            "the gap between two columns is not a second line between songs"
+        )
+        let topSplit = SectionDragMath.reorderSplitY(rowHeight: 90, isGroupTop: true, isGroupBottom: false)
+        let bottomSplit = SectionDragMath.reorderSplitY(rowHeight: 90, isGroupTop: false, isGroupBottom: true)
+        let middleSplit = SectionDragMath.reorderSplitY(rowHeight: 90, isGroupTop: false, isGroupBottom: false)
+        let onlySplit = SectionDragMath.reorderSplitY(rowHeight: 90, isGroupTop: true, isGroupBottom: true)
+        expect(topSplit > 45 && abs(topSplit - 60) < 0.001, "top song split is two thirds, wider than half")
+        expect(bottomSplit < 45 && abs(bottomSplit - 30) < 0.001, "bottom song split is one third, so the after-zone is wider")
+        expect(abs(middleSplit - 45) < 0.001, "a middle song still splits at the midpoint")
+        expect(abs(onlySplit - 45) < 0.001, "a column with one song still splits at the midpoint")
+
+        // 自动滚动边缘用窗口坐标，原点在左下。
+
+        let scroll = CGRect(x: 100, y: 200, width: 300, height: 400)
         expect(
             SectionDragMath.isInTopAutoScrollEdge(
                 mouseInWindow: CGPoint(x: 250, y: 590),
@@ -265,7 +598,7 @@ enum SectionDragMathTests {
         expect(SectionDragMath.previousSectionIndex(currentIndex: 0) == nil, "previous index at 0 is nil")
         expect(SectionDragMath.previousSectionIndex(currentIndex: -1) == nil, "previous index negative is nil")
 
-        // MARK: auto-scroll command table (scroll on the dragged event, not timer-only)
+        // 在拖动事件当帧滚动，不能只靠定时器。
 
         expectEqual(
             SectionDragMath.commandForDragEvent(kind: .leftMouseDragged, inTopEdge: true),
@@ -305,8 +638,7 @@ enum SectionDragMathTests {
             "event-tracking mode is the AppKit dragging run-loop mode"
         )
 
-        // Drive the shipped scheduler: a default-mode-only Timer.scheduledTimer would
-        // NOT fire here. This must use scheduleAutoScrollTimer.
+        // 只登记默认模式的定时器在这里不会触发，必须走统一登记的自动滚动定时器。
         var trackingFires = 0
         let trackingTimer = SectionDragMath.scheduleAutoScrollTimer(
             interval: 0.02,
@@ -322,7 +654,7 @@ enum SectionDragMathTests {
         trackingTimer.invalidate()
         expect(trackingFires >= 1, "shipped auto-scroll timer fires in NSEventTrackingRunLoopMode (fires=\(trackingFires))")
 
-        // `.common` is a mode *set*; run in `.default` to prove common-registration works.
+        // common 是一组模式；在默认模式里跑，才能证明登记进这组之后会触发。
         var defaultFires = 0
         let defaultTimer = SectionDragMath.scheduleAutoScrollTimer(
             interval: 0.02,
@@ -338,7 +670,7 @@ enum SectionDragMathTests {
         defaultTimer.invalidate()
         expect(defaultFires >= 1, "shipped auto-scroll timer (added to .common) fires in default mode (fires=\(defaultFires))")
 
-        // MARK: lyrics drop rejection
+        // 歌词框拒绝段落拖放。
 
         let uuid = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
         expect(SectionDragMath.isSectionIDPayload(uuid), "UUID string is a section-id payload")
@@ -373,8 +705,53 @@ enum SectionDragMathTests {
             "com.simplemelody.section-id",
             "shipped UTType identifier is the dedicated section-id type"
         )
+        expect(
+            SectionDragMath.shouldRejectLyricsDrop(
+                pasteboardStrings: [],
+                pasteboardTypeIDs: [SectionDragMath.sectionIDTypeIdentifier]
+            ),
+            "dedicated section drag type is rejected"
+        )
+        expect(
+            SectionDragMath.shouldRejectLyricsDrop(
+                pasteboardStrings: [uuid],
+                pasteboardTypeIDs: ["public.utf8-plain-text"]
+            ),
+            "plain-text section id is rejected"
+        )
+        expect(
+            SectionDragMath.shouldRejectLyricsDrop(
+                pasteboardStrings: [" \n\(uuid)\t "],
+                pasteboardTypeIDs: ["public.utf8-plain-text"]
+            ),
+            "section id surrounded by whitespace is rejected"
+        )
+        expect(
+            !SectionDragMath.shouldAcceptLyricsStringDrop(" \n\(uuid)\t "),
+            "section id surrounded by whitespace is not accepted as lyrics"
+        )
+        let sectionJSON = "{\"id\":\"\(uuid)\"}"
+        expect(SectionDragMath.isSectionIDPayload(sectionJSON), "codable section payload json is a section id")
+        expect(
+            SectionDragMath.shouldRejectLyricsDrop(
+                pasteboardStrings: [sectionJSON],
+                pasteboardTypeIDs: ["public.utf8-plain-text"]
+            ),
+            "json section id payload is rejected"
+        )
+        expect(
+            !SectionDragMath.shouldRejectLyricsDrop(
+                pasteboardStrings: ["夜に浮かぶ歌詞"],
+                pasteboardTypeIDs: ["public.utf8-plain-text"]
+            ),
+            "ordinary lyrics string is not rejected"
+        )
+        expect(
+            SectionDragMath.shouldAcceptLyricsStringDrop("夜に浮かぶ歌詞"),
+            "ordinary lyrics string is accepted"
+        )
 
-        // MARK: exclusive 译文 / 笔记 panel
+        // 译文和笔记互斥。
 
         expectEqual(
             SectionSidePanel.toggling(.none, targeting: .translation),
@@ -402,7 +779,7 @@ enum SectionDragMathTests {
             "open 笔记 tapped again → collapse"
         )
 
-        // MARK: shipped export/import codec (notes + translation)
+        // 已发布的导出与导入（笔记和译文）。
 
         expect(
             SectionLyricCodec.indentedBlock(label: "Translation", content: "").isEmpty,
@@ -591,10 +968,10 @@ enum SectionDragMathTests {
         expectEqual(selectedNotesParsed.first?.body ?? "", "", "checked-notes export omits the lyric body")
         expectEqual(selectedNotesParsed.first?.ruby ?? "", "", "checked-notes export omits ruby")
 
-        // MARK: v1.8.0 version compare + GitHub payload (injected)
+        // 版本比较和远端版本载荷（测试注入，不联网）。
 
-        expectEqual(AppReleaseMath.displayVersion, "v1.8.3", "display version is v1.8.3")
-        expectEqual(AppReleaseMath.marketingVersion, "1.8.3", "marketing version is 1.8.3")
+        expectEqual(AppReleaseMath.displayVersion, "v1.8.4", "display version is v1.8.4")
+        expectEqual(AppReleaseMath.marketingVersion, "1.8.4", "marketing version is 1.8.4")
         expectEqual(AppReleaseMath.compare(local: "v1.8.0", remote: "v1.7.10"), 1, "1.8.0 is newer than GitHub 1.7.10")
         expectEqual(AppReleaseMath.compare(local: "v1.7.9", remote: "v1.7.10"), -1, "1.7.9 is older than 1.7.10")
         expectEqual(AppReleaseMath.compare(local: "v1.7.10 Extra", remote: "v1.7.10"), 0, "letter suffix does not change numeric compare")
@@ -634,7 +1011,7 @@ enum SectionDragMathTests {
         expect(req.url?.absoluteString == AppReleaseMath.githubLatestURL, "request hits releases/latest")
         expect(req.value(forHTTPHeaderField: "User-Agent")?.contains("SimpleMelody") == true, "GitHub User-Agent set")
 
-        // MARK: changelog letter-suffix fold
+        // 更新日志的字母后缀折叠。
 
         expectEqual(ChangelogFold.numericStem("v1.7.10 Extra"), "v1.7.10", "Extra folds to numeric stem")
         expectEqual(ChangelogFold.numericStem("v1.7.9 GT5"), "v1.7.9", "GT5 folds to numeric stem")
@@ -664,7 +1041,7 @@ enum SectionDragMathTests {
         expect((folded.first { $0.version == "v1.7.9" }?.bodyMarkdown ?? "").contains("gt5"), "1.7.9 concatenates GT5")
         expect((folded.first { $0.version == "v1.7.9" }?.bodyMarkdown ?? "").contains("test"), "1.7.9 concatenates Test")
 
-        // MARK: preview caption + delete 译文 count
+        // 预览说明和删除时的译文计数。
 
         expectEqual(
             LyricsPreviewCaption.text(notes: "a note", translation: "trans", source: .notes),
@@ -718,7 +1095,7 @@ enum SectionDragMathTests {
         expect(trashLine.contains("1"), "delete line has translation count")
         expect(trashLine.contains("条译文"), "delete line includes 译文 label")
 
-        // MARK: Command whole-song notes / translation / collapse
+        // 按住 Command 时，笔记、译文和折叠作用于全曲。
         let batchStates: [SectionPanelState] = [
             SectionPanelState(panel: .none, collapsed: false),
             SectionPanelState(panel: .notes, collapsed: false),
@@ -748,7 +1125,7 @@ enum SectionDragMathTests {
         let closeTrans = SectionBatchAction.apply(states: openTrans, clickedIndex: 2, control: .translation, commandHeld: true)
         expect(closeTrans.allSatisfy { $0.panel != .translation }, "Command+译文 on an open section closes translation")
         expectEqual(closeTrans[1].panel, .none, "notes section changes to none only because it was not already closed-without-translation wait")
-        // closing translation: notes sections are not translation, so they stay notes
+        // 关掉译文时，本来就是笔记的段落保持笔记。
         let notesAndTrans = [
             SectionPanelState(panel: .translation, collapsed: false),
             SectionPanelState(panel: .notes, collapsed: false),
@@ -777,7 +1154,7 @@ enum SectionDragMathTests {
         )
         expectEqual(exclusivity[0].panel, .translation, "opening translation on one section clears notes")
 
-        // MARK: changelog display is not Markdown
+        // 更新日志界面显示的不是 Markdown。
         let rendered = ChangelogDisplayText.fromMarkdown("""
         ## 新增
         - first **bold** item
@@ -794,7 +1171,7 @@ enum SectionDragMathTests {
         expect(alreadyPlain.contains("【新增】"), "plain 【】 passthrough")
         expect(alreadyPlain.contains("• already converted"), "plain bullet passthrough")
 
-        // MARK: UI languages
+        // 界面语言。
         expectEqual(AppLanguage.detect(from: "ko"), .korean, "ko → 韩语")
         expectEqual(AppLanguage.detect(from: "ko-KR"), .korean, "ko-KR → 韩语")
         expectEqual(AppLanguage.detect(from: "es"), .spanish, "es → 西班牙语")
@@ -944,7 +1321,7 @@ enum SectionDragMathTests {
             "other Agent wording on the skill page stays"
         )
 
-        // MARK: v1.8.3 lyrics ruby + identity
+        // 歌词注音与原文对应。
         let lyrics = "東京は"
         let tokyo = LyricsRubySpan(rangeStart: 0, rangeLength: 2, original: "東京", phonetic: "とうきょう")
         let rubyFont = NSFont.systemFont(ofSize: 16)
@@ -1092,6 +1469,68 @@ enum SectionDragMathTests {
         expectEqual(wideTapRect.midX, tapRect.midX, "the widened box stays centered on the kanji")
         let hit = LyricsRubyMath.rubyHitXRange(baseMinX: 10, baseWidth: 16, rubyWidth: 40)
         expect(hit.maxX - hit.minX >= 40, "ruby hit box covers a reading wider than the kanji")
+
+        // 段首长注音不得画出栏的左右边。左边顶住时向右错开。
+        let rubyColumn = LyricsRubyMath.rubyColumnLimit(
+            lineMinX: 8, lineMaxX: 208,
+            viewMinX: 0, viewMaxX: 220
+        )
+        expectEqual(rubyColumn.minX, CGFloat(8), "栏左边取行与视图中更靠内的一边")
+        expectEqual(rubyColumn.maxX, CGFloat(208), "栏右边取行与视图中更靠内的一边")
+        let unready = LyricsRubyMath.rubyColumnLimit(
+            lineMinX: 0, lineMaxX: 180,
+            viewMinX: 0, viewMaxX: 0
+        )
+        expectEqual(unready.minX, CGFloat(0), "视图还没宽度时沿用行的左边")
+        expectEqual(unready.maxX, CGFloat(180), "视图还没宽度时沿用行的右边")
+        let centeredRuby = LyricsRubyMath.rubyDrawX(
+            baseMinX: 40, baseWidth: 32, rubyWidth: 20,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expectEqual(centeredRuby, CGFloat(46), "放得下的注音仍居中在汉字上")
+        let leftNatural = CGFloat(0) + (16 - 40) / 2
+        let leftPinned = LyricsRubyMath.rubyDrawX(
+            baseMinX: 0, baseWidth: 16, rubyWidth: 40,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expect(leftPinned > leftNatural, "段首长注音向右错开")
+        expectEqual(leftPinned, CGFloat(0), "段首长注音贴住左边，不画出栏外")
+        expect(leftPinned + 40 <= 200, "向右错开后仍不超过右边")
+        let rightPinned = LyricsRubyMath.rubyDrawX(
+            baseMinX: 180, baseWidth: 16, rubyWidth: 40,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expectEqual(rightPinned, CGFloat(160), "行末长注音向左收，贴住右边")
+        expect(rightPinned + 40 <= 200, "行末注音不超过右边")
+        expect(rightPinned >= 0, "行末注音也不越过左边")
+        let tooWide = LyricsRubyMath.rubyDrawX(
+            baseMinX: 10, baseWidth: 16, rubyWidth: 300,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expectEqual(tooWide, CGFloat(0), "比整栏还宽的注音贴住左边")
+        let shiftedHit = LyricsRubyMath.rubyHitRect(
+            baseBox: CGRect(x: 0, y: 0, width: 16, height: 20),
+            rubyWidth: 40,
+            lineMinY: 4,
+            extraRubyHeight: extraRuby,
+            limitMinX: 0,
+            limitMaxX: 200
+        )
+        expectEqual(shiftedHit.minX, CGFloat(0), "段首点击区跟着错开，不伸出左边")
+        expectEqual(shiftedHit.maxX, CGFloat(40), "段首点击区盖住向右错开的整段读音")
+        expect(shiftedHit.maxX <= 200, "段首点击区不超过右边")
+        let rightHit = LyricsRubyMath.rubyHitXRange(
+            baseMinX: 180, baseWidth: 16, rubyWidth: 40,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expectEqual(rightHit.minX, CGFloat(160), "行末点击区跟着向左错开")
+        expectEqual(rightHit.maxX, CGFloat(200), "行末点击区贴住右边")
+        let fittedHit = LyricsRubyMath.rubyHitXRange(
+            baseMinX: 40, baseWidth: 32, rubyWidth: 20,
+            limitMinX: 0, limitMaxX: 200
+        )
+        expectEqual(fittedHit.minX, CGFloat(40), "不越界的短注音点击区仍是汉字宽度")
+        expectEqual(fittedHit.maxX, CGFloat(72), "短注音点击区右端仍在汉字右端")
 
         // MARK: 歌词改动后注音跟着挪（假名必须压在自己的汉字上）
         let before = "君と東京の街" as NSString   // 東京 在 [2,2)
@@ -1259,11 +1698,12 @@ enum SectionDragMathTests {
         )
         expect(LyricsRubyMath.kern(at: 0, in: withKern) + LyricsRubyMath.kern(at: 1, in: withKern) > 0, "attributed string applies the extra kern")
 
-        expectEqual(AppReleaseMath.displayVersion, "v1.8.3", "shipped display version")
-        expectEqual(AppReleaseMath.marketingVersion, "1.8.3", "shipped marketing version")
+        expectEqual(AppReleaseMath.displayVersion, "v1.8.4", "shipped display version")
+        expectEqual(AppReleaseMath.marketingVersion, "1.8.4", "shipped marketing version")
         let shown = ChangelogContent.displayedEntries
         let latest = shown.filter(\.isLatest)
-        expectEqual(latest.map(\.version), ["v1.8.3"], "only latest changelog row is v1.8.3")
+        expectEqual(latest.map(\.version), ["v1.8.4"], "only latest changelog row is v1.8.4")
+        expect(!shown.contains(where: { $0.version == "v1.8.3" && $0.isLatest }), "v1.8.3 is not latest")
         expect(!shown.contains(where: { $0.version == "v1.8.2" && $0.isLatest }), "v1.8.2 is not latest")
         expect(!shown.contains(where: { $0.version == "v1.8.1" && $0.isLatest }), "v1.8.1 is not latest")
         expectEqual(shown.first { $0.version == "v1.7.10" }?.date ?? "", "2026-06-26", "displayed v1.7.10 date is June 26")
@@ -1276,7 +1716,27 @@ enum SectionDragMathTests {
             latest[0].bodyMarkdownKO ?? "",
             latest[0].bodyMarkdownES ?? "",
         ]
-        expectEqual(bodies.filter { !$0.isEmpty }.count, 6, "v1.8.3 has six language bodies")
+        expectEqual(bodies.filter { !$0.isEmpty }.count, 6, "v1.8.4 has six language bodies")
+        expectEqual(shown.first { $0.version == "v1.8.4" }?.date ?? "", "2026-10-11", "v1.8.4 date is October 11")
+        let fixNotes = [
+            ["【修复】", "【修復】", "【Fixed】", "【修正】", "【수정】", "【Corrección】"],
+            ["注音文字显示位置", "注音文字顯示位置", "furigana text", "ふりがなの文字", "후리가나 글자", "texto de furigana"],
+            ["拖动交互", "拖動互動", "drag interactions", "ドラッグ操作", "드래그 조작", "interacciones de arrastre"],
+        ]
+        for (index, body) in bodies.enumerated() {
+            for phrases in fixNotes {
+                expect(body.contains(phrases[index]), "v1.8.4 body \(index) mentions \(phrases[index])")
+            }
+        }
+        let v183 = shown.first { $0.version == "v1.8.3" }
+        let v183Bodies = [
+            v183?.bodyMarkdown ?? "",
+            v183?.bodyMarkdownZHT ?? "",
+            v183?.bodyMarkdownEN ?? "",
+            v183?.bodyMarkdownJA ?? "",
+            v183?.bodyMarkdownKO ?? "",
+            v183?.bodyMarkdownES ?? "",
+        ]
         // 简体正文是手写范本，其他语言照它翻译
         let rubyNotes = [
             ["Imagine", "Imagine", "Imagine", "Imagine", "Imagine", "Imagine"],
@@ -1288,7 +1748,7 @@ enum SectionDragMathTests {
             ["创意", "創意", "Creative", "創作", "창작", "Creativo"],
             ["弃用", "棄用", "retired", "廃止", "폐지", "retirado"],
         ]
-        for (index, body) in bodies.enumerated() {
+        for (index, body) in v183Bodies.enumerated() {
             for phrases in rubyNotes {
                 expect(body.contains(phrases[index]), "v1.8.3 body \(index) mentions \(phrases[index])")
             }
@@ -1454,7 +1914,7 @@ enum SectionDragMathTests {
         expectEqual(keyStore.current(), .empty, "cleared api connection is empty")
         defaults.removePersistentDomain(forName: suiteName)
 
-        // MARK: Imagine scope, prompt, reply, and chat request
+        // 创意的范围、提示词、回复和请求。
         let imagineDoc = ImagineDocument(
             title: "夜航",
             artist: "A",
@@ -1856,9 +2316,8 @@ enum SectionDragMathTests {
         expectEqual(untouched.sections[1].translation, "old chorus", "empty lyrics are not given a translation")
         expectEqual(untouched.sections[1].notes, "只在笔记里", "notes stay notes")
 
-        // MARK: Imagine furigana
+        // 创意注音。
         expectEqual(ImagineWorkflow.phoneticOnly("し/よん"), "し", "candidate readings keep only the first kana")
-        expectEqual(ImagineWorkflow.hiraganaOnly("し/よん"), "し", "hiraganaOnly forwards to phoneticOnly")
         expectEqual(ImagineWorkflow.phoneticOnly("トウキョウ"), "トウキョウ", "katakana is kept for gikun")
         expectEqual(ImagineWorkflow.phoneticOnly("デジャヴ"), "デジャヴ", "vu katakana is kept")
         expectEqual(ImagineWorkflow.phoneticOnly("ゴールデンウィーク"), "ゴールデンウィーク", "long-vowel katakana is kept")
@@ -2154,7 +2613,7 @@ enum SectionDragMathTests {
         expectEqual(missingConnection.outcome, ImagineCheckOutcome.failure, "missing key and URL report failure")
         expect(missingConnection.request == nil, "missing configuration does not substitute a model")
 
-        // MARK: right column width and enter edge
+        // 右栏宽度和进入边缘。
         let settingsColumn = RightColumnMetrics.layout(for: .settings)
         expectEqual(settingsColumn.minWidth, CGFloat(480), "settings locks minimum width to the settings page")
         expectEqual(settingsColumn.idealWidth, CGFloat(480), "settings locks ideal width to the settings page")
@@ -2178,7 +2637,7 @@ enum SectionDragMathTests {
         expectEqual(offColumn.maxWidth, CGFloat(0), "off width maximum is 0")
         expectEqual(offColumn.enterEdge, .none, "off has no enter edge")
 
-        // MARK: font scale metrics
+        // 字号比例只改文字。
         expectEqual(AppFontMetrics.clamp(0.5), AppFontMetrics.minScale, "clamp below min")
         expectEqual(AppFontMetrics.clamp(2), AppFontMetrics.maxScale, "clamp above max")
         expectEqual(AppFontMetrics.clamp(1), AppFontMetrics.defaultScale, "clamp default")
@@ -2225,6 +2684,153 @@ enum SectionDragMathTests {
             for lang in uiLangs {
                 let body = row.markdown(for: lang).trimmingCharacters(in: .whitespacesAndNewlines)
                 expect(!body.isEmpty, "displayed \(row.version) \(lang.rawValue) changelog is non-empty")
+            }
+        }
+
+        // 左键拖动只重排。右键拖动才滑出 Imagine / 删除。触控板双指拖动若被系统报成右键，走同一份。
+        let primary = SectionDragMath.sectionPointerButton(rightButton: false)
+        let secondary = SectionDragMath.sectionPointerButton(rightButton: true)
+        expectEqual(primary, .primary, "left button is the reorder pointer")
+        expectEqual(secondary, .secondary, "right button, including a trackpad two-finger drag reported as that button, is the reveal pointer")
+        expect(primary != secondary, "left and right buttons are not the same gesture")
+
+        func intent(
+            _ button: SectionDragMath.SectionPointerButton,
+            _ x: CGFloat,
+            _ y: CGFloat,
+            ended: Bool = false,
+            alreadyRevealing: Bool = false
+        ) -> SectionDragMath.SectionGestureIntent {
+            SectionDragMath.sectionGestureIntent(
+                button: button,
+                translationX: x,
+                translationY: y,
+                ended: ended,
+                alreadyRevealing: alreadyRevealing
+            )
+        }
+
+        expectEqual(intent(primary, 0, 0), .pending, "primary press without movement is not a reorder yet")
+        expectEqual(intent(primary, 3, 0, ended: true), .pending, "primary movement under the slop stays a click")
+        expectEqual(intent(primary, 4, 0), .reorder, "primary drag past the slop reorders")
+        expectEqual(intent(primary, 0, 4), .reorder, "primary vertical drag still reorders")
+        expectEqual(intent(primary, 80, 0, ended: true), .reorder, "primary drag to the right is reorder, not Imagine")
+        expectEqual(intent(primary, -80, 0, ended: true), .reorder, "primary drag to the left is reorder, not delete")
+        expect(intent(primary, 80, 0) != .revealImagine, "primary drag does not reveal Imagine")
+        expect(intent(primary, -80, 0) != .revealDelete, "primary drag does not reveal delete")
+        expect(intent(primary, 0, 0, ended: true) != .contextMenu, "primary release is not the section menu")
+
+        expectEqual(intent(secondary, 0, 0), .pending, "secondary press without movement is not a reveal yet")
+        expectEqual(intent(secondary, 0, 0, ended: true), .contextMenu, "secondary release without a drag stays the section menu")
+        expectEqual(intent(secondary, 10, 0, ended: true), .contextMenu, "secondary movement under the reveal distance is not a reveal")
+        expect(intent(secondary, 0, 0, ended: true) != .revealImagine, "a right-click without a drag does not reveal Imagine")
+        expect(intent(secondary, 0, 0, ended: true) != .revealDelete, "a right-click without a drag does not reveal delete")
+        expectEqual(intent(secondary, 40, 0), .revealImagine, "secondary drag to the right reveals Imagine")
+        expectEqual(intent(secondary, -40, 0), .revealDelete, "secondary drag to the left reveals delete")
+        expectEqual(intent(secondary, 80, 10, ended: true), .revealImagine, "held secondary drag that moves right reveals Imagine")
+        expectEqual(intent(secondary, -80, 10, ended: true), .revealDelete, "held secondary drag that moves left reveals delete")
+        expect(intent(secondary, 80, 0) != .reorder, "secondary drag does not reorder")
+        expect(intent(secondary, -80, 0) != .reorder, "secondary drag left does not reorder")
+        expect(intent(secondary, 0, 80, ended: true) != .reorder, "secondary vertical movement does not reorder")
+        expectEqual(intent(secondary, 0, 80, ended: true), .contextMenu, "secondary vertical release is still the section menu")
+        expectEqual(intent(secondary, 40, 20), .pending, "secondary drag that is not clearly horizontal waits")
+        expectEqual(intent(secondary, 1, 0, alreadyRevealing: true), .revealImagine, "once revealing, a positive move stays on Imagine")
+        expectEqual(intent(secondary, -1, 40, alreadyRevealing: true), .revealDelete, "once revealing, a negative move stays on delete")
+        expectEqual(
+            intent(SectionDragMath.sectionPointerButton(rightButton: true), 50, 0),
+            .revealImagine,
+            "trackpad two-finger drag reported as the right button reveals Imagine when it moves right"
+        )
+        expectEqual(
+            intent(SectionDragMath.sectionPointerButton(rightButton: true), -50, 0),
+            .revealDelete,
+            "trackpad two-finger drag reported as the right button reveals delete when it moves left"
+        )
+
+        let natural = SectionDragMath.trackpadFingerDelta(scrollingDeltaX: 30, scrollingDeltaY: 4, naturalScrolling: true)
+        expectEqual(natural.x, CGFloat(30), "natural two-finger drag to the right stays positive")
+        expectEqual(natural.y, CGFloat(4), "natural two-finger drag keeps its vertical delta")
+        let classic = SectionDragMath.trackpadFingerDelta(scrollingDeltaX: 30, scrollingDeltaY: 4, naturalScrolling: false)
+        expectEqual(classic.x, CGFloat(-30), "non-natural scrolling is flipped back to the finger direction")
+        expectEqual(
+            SectionDragMath.trackpadSectionScroll(fingerX: 50, fingerY: 4, ended: false),
+            .reveal(.revealImagine),
+            "unpressed two-finger drag right reveals Imagine"
+        )
+        expectEqual(
+            SectionDragMath.trackpadSectionScroll(fingerX: -50, fingerY: 4, ended: true),
+            .reveal(.revealDelete),
+            "unpressed two-finger drag left reveals delete"
+        )
+        expectEqual(
+            SectionDragMath.trackpadSectionScroll(fingerX: 6, fingerY: 40, ended: false),
+            .pass,
+            "vertical two-finger scroll still scrolls the page"
+        )
+        expectEqual(
+            SectionDragMath.trackpadSectionScroll(fingerX: 12, fingerY: 2, ended: false),
+            .hold,
+            "horizontal two-finger drag locks before the reveal distance"
+        )
+        expectEqual(
+            SectionDragMath.trackpadSectionScroll(fingerX: 12, fingerY: 2, ended: true),
+            .pass,
+            "a short unpressed two-finger drag does not open the section menu"
+        )
+        expect(
+            SectionDragMath.trackpadSectionScroll(fingerX: 80, fingerY: 0, ended: true) != .reveal(.reorder),
+            "unpressed two-finger drag does not reorder"
+        )
+
+        let changeNotes = [
+            ["【改动】", "【改動】", "【Changed】", "【変更】", "【변경】", "【Cambios】"],
+            ["段落拖动开关", "段落拖動開關", "Section Drag", "セクションドラッグ", "섹션 드래그", "arrastrar secciones"],
+            ["左键长按", "左鍵長按", "left-button", "左ボタン", "왼쪽 버튼", "botón izquierdo"],
+            ["右键", "右鍵", "right-button", "右ボタン", "오른쪽 버튼", "botón derecho"],
+            ["双指", "雙指", "two-finger", "二本指", "두 손가락", "dos dedos"],
+            ["Imagine", "Imagine", "Imagine", "Imagine", "Imagine", "Imagine"],
+        ]
+        let shownLatest = ChangelogContent.displayedEntries.first { $0.version == "v1.8.4" && $0.isLatest }
+        expect(shownLatest != nil, "displayed latest changelog is v1.8.4")
+        if let shownLatest {
+            for (index, lang) in uiLangs.enumerated() {
+                let body = shownLatest.markdown(for: lang)
+                for phrases in changeNotes {
+                    expect(body.contains(phrases[index]), "displayed v1.8.4 \(lang.rawValue) mentions \(phrases[index])")
+                }
+                for phrases in fixNotes {
+                    expect(body.contains(phrases[index]), "displayed v1.8.4 \(lang.rawValue) still mentions \(phrases[index])")
+                }
+            }
+        }
+        let sourceLatest = ChangelogContent.entries.first { $0.version == "v1.8.4" }
+        if let sourceLatest {
+            for (index, lang) in uiLangs.enumerated() {
+                let body = sourceLatest.markdown(for: lang)
+                expect(body.contains(changeNotes[0][index]), "source v1.8.4 \(lang.rawValue) has the change heading")
+            }
+        }
+
+        let guideMust = [
+            ["左键长按", "左鍵長按", "left button", "左ボタン", "왼쪽 버튼", "botón izquierdo"],
+            ["右键", "右鍵", "right button", "右ボタン", "오른쪽 버튼", "botón derecho"],
+            ["双指", "雙指", "two-finger", "二本指", "두 손가락", "dos dedos"],
+            ["不必按下", "不必按下", "no press", "押し込み不要", "누르지 않아도", "sin pulsar"],
+            ["Imagine", "Imagine", "Imagine", "Imagine", "Imagine", "Imagine"],
+        ]
+        let guideForbid = [
+            ["默认关闭", "預設關閉", "off by default", "既定オフ", "기본 꺼짐", "apagado por defecto"],
+            ["向右滑", "向右滑", "swipe a lyric", "右に滑らせ", "오른쪽으로 밀면", "desliza una sección"],
+            ["段落拖动开关", "段落拖動開關", "Section Drag", "セクションドラッグ", "섹션 끌기", "interruptor de arrastrar"],
+        ]
+        for (index, lang) in uiLangs.enumerated() {
+            let guide = UsageGuideContent.sections(for: lang).map(\.bodyMarkdown).joined(separator: "\n")
+            expect(!guide.isEmpty, "usage guide \(lang.rawValue) has body text")
+            for phrases in guideMust {
+                expect(guide.contains(phrases[index]), "usage guide \(lang.rawValue) names \(phrases[index])")
+            }
+            for phrases in guideForbid {
+                expect(!guide.contains(phrases[index]), "usage guide \(lang.rawValue) does not say \(phrases[index])")
             }
         }
 

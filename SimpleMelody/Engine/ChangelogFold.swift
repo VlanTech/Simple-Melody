@@ -1,7 +1,4 @@
-// Engine/ChangelogFold.swift
-// v1.8.0: display-only fold of letter-tagged changelog rows into numeric stems.
-// The source data under ChangelogView is already merged into numeric versions,
-// so this stays as a safety net for any tagged row that shows up again.
+// 仅用于显示：把带字母后缀的日志行折成数字版本。数据源已按数字版本合并，这里只是兜底。
 
 import Foundation
 
@@ -18,7 +15,7 @@ struct ChangelogRow: Equatable {
 }
 
 enum ChangelogFold {
-    /// "v1.7.10 Extra" → "v1.7.10"; "v1.7.9 GT5" → "v1.7.9"; "v1.7 Beta" → "v1.7".
+    /// v1.7.10 Extra 折成 v1.7.10，v1.7.9 GT5 折成 v1.7.9，v1.7 Beta 折成 v1.7。
     static func numericStem(_ version: String) -> String {
         let trimmed = version.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = ""
@@ -39,7 +36,7 @@ enum ChangelogFold {
         return result
     }
 
-    /// Keep first-seen stem order (newest-first source). Concatenate bodies. Heading is the stem only.
+    /// 保持首次出现的词干顺序（源数据从新到旧）。正文拼接，标题只用词干。
     static func fold(_ rows: [ChangelogRow]) -> [ChangelogRow] {
         var order: [String] = []
         var groups: [String: [ChangelogRow]] = [:]
@@ -73,8 +70,8 @@ enum ChangelogFold {
     }
 }
 
-/// Changelog window uses plain `Text`, not Markdown. Convert source markers
-/// (`##`, `-`, `**`, `` ` ``) into 【section】 / • bullets the UI actually shows.
+/// 更新日志窗口用的是纯文本，不是 Markdown。
+/// 把标题记号、列表记号和行内强调换成界面上真正显示的【章节】和项目符号。
 enum ChangelogDisplayText {
     static func fromMarkdown(_ raw: String) -> String {
         raw.components(separatedBy: "\n").map { line in

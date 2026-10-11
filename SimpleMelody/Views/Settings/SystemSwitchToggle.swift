@@ -1,4 +1,3 @@
-// Views/Settings/SystemSwitchToggle.swift
 // v1.6.1: macOS 系统原生 NSSwitch 包装
 //
 // 原因：SwiftUI 的 .toggleStyle(.switch) 在某些 view hierarchy（嵌套 VStack + HStack）里

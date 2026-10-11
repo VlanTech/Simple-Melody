@@ -1,13 +1,17 @@
-// Views/Sidebar/SongSidebarView.swift
 // 左侧曲目列表
 // v1.5.2: 多选（Set<UUID>）+ 批量操作菜单 + 文件夹歌曲完整右键 + 批量导入
 
 import SwiftUI
 import SwiftData
+import AppKit
 
 struct SongSidebarView: View {
+    /// 根目录歌曲共用这一栏。文件夹用自己的 id，避免和根目录串成同一条缝。
+    private static let rootReorderGroup = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
     @Environment(\.modelContext) private var context
     @Binding var selectedSongIDs: Set<UUID>
+    @StateObject private var reorderLine = SongReorderLineState()
     /// v1.7.9 Delta+: 排序 + 搜索状态由 ContentView 持有（保证切歌方向判定和 UI 显示顺序一致）
     @Binding var sortMode: SongSortMode
     @Binding var searchText: String
@@ -175,10 +179,18 @@ struct SongSidebarView: View {
     private var songList: some View {
         List(selection: $selectedSongIDs) {
             // 根目录歌曲
-            ForEach(filtered(rootSongs)) { song in
-                SongRow(song: song, onDrop: { ids in
-                    self.handleSongDrop(draggedIDs: ids, before: song)
-                })
+            let visibleRootSongs = filtered(rootSongs)
+            ForEach(Array(visibleRootSongs.enumerated()), id: \.element.id) { index, song in
+                SongRow(
+                    song: song,
+                    reorderLine: reorderLine,
+                    groupID: Self.rootReorderGroup,
+                    isGroupTop: index == 0,
+                    isGroupBottom: index == visibleRootSongs.count - 1,
+                    onDrop: { ids, dropY, midY in
+                        self.handleSongDrop(draggedIDs: ids, target: song, dropY: dropY, targetMidY: midY)
+                    }
+                )
                     .tag(song.id)
                     .contextMenu {
                         songContextMenu(for: song, allSelectedSongs: selectedSongs)
@@ -194,15 +206,22 @@ struct SongSidebarView: View {
                     onDropToFolder: { ids in
                         self.handleSongDropToFolderEnd(draggedIDs: ids, folder: folder)
                     },
-                    onDropInFolder: { target, ids in
-                        self.handleSongDropInFolder(draggedIDs: ids, before: target, folder: folder)
+                    onDropInFolder: { target, ids, dropY, midY in
+                        self.handleSongDropInFolder(
+                            draggedIDs: ids,
+                            target: target,
+                            folder: folder,
+                            dropY: dropY,
+                            targetMidY: midY
+                        )
                     },
                     onMoveUp: { song in self.moveSongUp(song) },
                     onMoveDown: { song in self.moveSongDown(song) },
                     onMoveToFolder: { songs, target in self.moveSongsToFolder(songs, folder: target) },
                     allFolders: rootFolders,
                     onFolderMoveUp: { self.moveFolderUp(folder) },
-                    onFolderMoveDown: { self.moveFolderDown(folder) }
+                    onFolderMoveDown: { self.moveFolderDown(folder) },
+                    reorderLine: reorderLine
                 )
             }
 
@@ -211,7 +230,8 @@ struct SongSidebarView: View {
                 TrashSection(
                     folder: trash,
                     selectedSongIDs: $selectedSongIDs,
-                    currentSelection: selectedSongs
+                    currentSelection: selectedSongs,
+                    reorderLine: reorderLine
                 )
             }
         }
@@ -670,37 +690,68 @@ struct SongSidebarView: View {
 
     // MARK: 拖拽排序（v1.7.8 Beta）
 
-    /// 拖动到根目录某 Song 上：移到根 + 排到该 Song 之前
-    private func handleSongDrop(draggedIDs: [UUID], before target: Song) {
-        let dragged = draggedIDs.compactMap { findSong($0) }
-        guard !dragged.isEmpty else { return }
-        for song in dragged {
-            song.folder = nil
-        }
-        // sortOrder 是 Int，用 (target.sortOrder - 1) 到 target.sortOrder 之间的整数插入
-        let count = dragged.count
-        let baseOrder = max(0, target.sortOrder - count)
-        for (i, s) in dragged.enumerated() {
-            s.sortOrder = baseOrder + i
-        }
-        try? context.save()
-        normalizeSortOrder(in: nil)
+    /// 拖到根目录某首歌上：移到根目录，并按落点插进这一整组。
+    private func handleSongDrop(draggedIDs: [UUID], target: Song, dropY: CGFloat, targetMidY: CGFloat) {
+        applySongReorder(draggedIDs: draggedIDs, target: target, folder: nil, dropY: dropY, targetMidY: targetMidY)
     }
 
-    /// 拖动到某 folder 内 Song 上：移到该 folder + 排到该 Song 之前
-    private func handleSongDropInFolder(draggedIDs: [UUID], before target: Song, folder: SongFolder) {
+    /// 拖到文件夹里某首歌上：移进该文件夹，并按落点插进这一整组。
+    private func handleSongDropInFolder(
+        draggedIDs: [UUID],
+        target: Song,
+        folder: SongFolder,
+        dropY: CGFloat,
+        targetMidY: CGFloat
+    ) {
+        applySongReorder(draggedIDs: draggedIDs, target: target, folder: folder, dropY: dropY, targetMidY: targetMidY)
+    }
+
+    /// 用目标所在的整组歌曲重排，搜索没显示出来的也留在原相对位置。只改这一组的序号。
+    private func applySongReorder(
+        draggedIDs: [UUID],
+        target: Song,
+        folder: SongFolder?,
+        dropY: CGFloat,
+        targetMidY: CGFloat
+    ) {
         let dragged = draggedIDs.compactMap { findSong($0) }
         guard !dragged.isEmpty else { return }
-        for song in dragged {
+        let siblings = siblingSongs(in: folder)
+        let siblingIDs = Set(siblings.map(\.id))
+        let incoming = dragged
+            .filter { !siblingIDs.contains($0.id) }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        var orderedIDs = siblings.map(\.id)
+        for song in incoming where !orderedIDs.contains(song.id) {
+            orderedIDs.append(song.id)
+        }
+        let moved = SectionDragMath.reorderedSiblingIDs(
+            orderedIDs: orderedIDs,
+            draggedIDs: dragged.map(\.id),
+            targetID: target.id,
+            dropY: dropY,
+            targetMidY: targetMidY
+        )
+        if moved == orderedIDs && incoming.isEmpty { return }
+        var byID: [UUID: Song] = [:]
+        for song in siblings { byID[song.id] = song }
+        for song in dragged { byID[song.id] = song }
+        let movedIDs = Set(moved)
+        for song in dragged where movedIDs.contains(song.id) {
             song.folder = folder
         }
-        let count = dragged.count
-        let baseOrder = max(0, target.sortOrder - count)
-        for (i, s) in dragged.enumerated() {
-            s.sortOrder = baseOrder + i
+        for (index, id) in moved.enumerated() {
+            byID[id]?.sortOrder = index
         }
         try? context.save()
-        normalizeSortOrder(in: folder)
+    }
+
+    /// 根目录或某个文件夹里的全部歌曲，不看搜索框。
+    private func siblingSongs(in folder: SongFolder?) -> [Song] {
+        if let folder {
+            return folder.orderedSongs.sorted { $0.sortOrder < $1.sortOrder }
+        }
+        return songs.filter { $0.folder == nil }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     /// 拖动到 folder 末尾（label）：加入该 folder + 排到末尾
@@ -801,8 +852,8 @@ private struct FolderSection: View {
     let currentSelection: [Song]
     /// v1.7.8 Beta: 拖到 folder label 时回调（参数：被拖入的 song ID 列表）
     let onDropToFolder: ([UUID]) -> Void
-    /// v1.7.8 Beta: 拖到 folder 内某 Song 上时回调（参数：目标 song + 被拖入 song ID 列表）
-    let onDropInFolder: (Song, [UUID]) -> Void
+    /// 拖到文件夹内某首歌上：目标、被拖歌曲、落点纵坐标、行中线
+    let onDropInFolder: (Song, [UUID], CGFloat, CGFloat) -> Void
     /// v1.7.9 GT4: 上移/下移回调（列表内排序，不跨文件夹）
     let onMoveUp: (Song) -> Void
     let onMoveDown: (Song) -> Void
@@ -813,15 +864,24 @@ private struct FolderSection: View {
     /// v1.7.9 GT5: 文件夹自身的上移/下移回调（文件夹间排序，不越过根目录歌曲）
     let onFolderMoveUp: () -> Void
     let onFolderMoveDown: () -> Void
+    let reorderLine: SongReorderLineState
 
     @State private var isExpanded: Bool = true
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(folder.orderedSongs) { song in
-                SongRow(song: song, onDrop: { ids in
-                    onDropInFolder(song, ids)
-                })
+            let visibleSongs = folder.orderedSongs
+            ForEach(Array(visibleSongs.enumerated()), id: \.element.id) { index, song in
+                SongRow(
+                    song: song,
+                    reorderLine: reorderLine,
+                    groupID: folder.id,
+                    isGroupTop: index == 0,
+                    isGroupBottom: index == visibleSongs.count - 1,
+                    onDrop: { ids, dropY, midY in
+                        onDropInFolder(song, ids, dropY, midY)
+                    }
+                )
                     .tag(song.id)
                     .contextMenu {
                         songContextMenu(for: song)
@@ -1118,6 +1178,7 @@ private struct TrashSection: View {
     @Bindable var folder: SongFolder
     @Binding var selectedSongIDs: Set<UUID>
     let currentSelection: [Song]
+    let reorderLine: SongReorderLineState
 
     @State private var isExpanded: Bool = false
 
@@ -1125,7 +1186,7 @@ private struct TrashSection: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             ForEach(folder.orderedSongs) { song in
                 // v1.7.8 Beta: 回收站里的歌曲不支持拖入（onDrop 不传，等于空回调）
-                SongRow(song: song, onDrop: { _ in })
+                SongRow(song: song, reorderLine: reorderLine, acceptsReorder: false, onDrop: { _, _, _ in })
                     .tag(song.id)
                     .contextMenu {
                         let isMultiSelection = currentSelection.count > 1 && currentSelection.contains(where: { $0.id == song.id })
@@ -1141,7 +1202,7 @@ private struct TrashSection: View {
                                 guard DeleteConfirmator.confirm(title: title, message: message) else { return }
                                 for s in currentSelection { context.delete(s) }
                                 try? context.save()
-                                TrashSound.play()  // v1.7.4 Beta
+                                TrashSound.play()
                                 selectedSongIDs.removeAll()
                             }
                             .tint(.red)
@@ -1156,7 +1217,7 @@ private struct TrashSection: View {
                                 guard DeleteConfirmator.confirm(title: song.title, message: message) else { return }
                                 context.delete(song)
                                 try? context.save()
-                                TrashSound.play()  // v1.7.4 Beta
+                                TrashSound.play()
                                 selectedSongIDs.removeAll()
                             }
                             .tint(.red)
@@ -1197,8 +1258,26 @@ enum SongSortMode: Hashable {
 
 private struct SongRow: View {
     let song: Song
-    /// v1.7.8 Beta: 接收到拖入时的回调，参数是被拖动的 song ID 列表
-    let onDrop: ([UUID]) -> Void
+    @ObservedObject var reorderLine: SongReorderLineState
+    /// 根目录或某个文件夹。同一栏的缝才合并成一条线。
+    var groupID: UUID = UUID()
+    var isGroupTop: Bool = false
+    var isGroupBottom: Bool = false
+    /// 回收站不接受重排，也不画落点横线。
+    var acceptsReorder: Bool = true
+    /// 被拖歌曲、落点纵坐标、分界。顶头和垫底分界更宽，其余在中线。
+    let onDrop: ([UUID], CGFloat, CGFloat) -> Void
+
+    @State private var rowHeight: CGFloat = 1
+
+    private var showsLine: Bool {
+        let sides = SectionDragMath.reorderLineSides(for: ReorderDragCenter.shared.subject)
+        return acceptsReorder && sides.songLibrary && reorderLine.claim?.rowID == song.id
+    }
+
+    private var lineOnTop: Bool {
+        reorderLine.claim?.insertsBefore == true
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1236,9 +1315,37 @@ private struct SongRow: View {
             Spacer()
         }
         .padding(.vertical, 2)
-        // v1.7.8 Beta: 拖拽支持
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowHeight = max(geo.size.height, 1) }
+                    .onChange(of: geo.size.height) { _, height in
+                        rowHeight = max(height, 1)
+                    }
+            }
+        )
+        .background {
+            if acceptsReorder {
+                SongReorderEdgeTracker(
+                    rowID: song.id,
+                    groupID: groupID,
+                    isGroupTop: isGroupTop,
+                    isGroupBottom: isGroupBottom,
+                    lineState: reorderLine
+                )
+                .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: lineOnTop ? .top : .bottom) {
+            if showsLine {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2.5)
+                    .padding(.horizontal, 4)
+                    .allowsHitTesting(false)
+            }
+        }
         .draggable(song.id.uuidString) {
-            // drag preview（拖动时显示的浮动视图）
             HStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .foregroundStyle(.tint)
@@ -1248,12 +1355,269 @@ private struct SongRow: View {
             .padding(8)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
         }
-        // 接收：把拖入的 song 移到本 song 所在 folder + 排在本 song 之前
-        .dropDestination(for: String.self) { items, _ in
-            let ids = items.compactMap { UUID(uuidString: $0) }.filter { $0 != song.id }
+        .dropDestination(for: String.self) { items, location in
+            let dropY = location.y
+            let split = SectionDragMath.reorderSplitY(
+                rowHeight: max(rowHeight, 1),
+                isGroupTop: isGroupTop,
+                isGroupBottom: isGroupBottom
+            )
+            let ids = items.compactMap { UUID(uuidString: $0) }
             guard !ids.isEmpty else { return false }
-            onDrop(ids)
+            guard acceptsReorder else { return true }
+            onDrop(ids, dropY, split)
             return true
+        }
+        .onDisappear {
+            reorderLine.unregister(rowID: song.id)
+        }
+    }
+}
+
+/// 同一栏里相邻两首只画一条缝。拖动时同时看所有歌曲行，不能只看当前悬停的那一行。
+private final class SongReorderLineState: ObservableObject {
+    struct Claim: Equatable {
+        var rowID: UUID
+        var insertsBefore: Bool
+    }
+
+    private final class RowAnchor {
+        weak var view: NSView?
+        var groupID: UUID
+        var isGroupTop: Bool
+        var isGroupBottom: Bool
+        init(view: NSView, groupID: UUID, isGroupTop: Bool, isGroupBottom: Bool) {
+            self.view = view
+            self.groupID = groupID
+            self.isGroupTop = isGroupTop
+            self.isGroupBottom = isGroupBottom
+        }
+    }
+
+    @Published private(set) var claim: Claim?
+    private var anchors: [UUID: RowAnchor] = [:]
+    private var rows: [UUID: SectionDragMath.SongReorderLineSpan] = [:]
+    private var pointerY: CGFloat?
+    private var monitor: Any?
+    private var timer: Timer?
+    /// 按下时指针是否在某一行的屏幕矩形里（含左右）。只记这一下，拖出侧栏后仍算拖歌曲。
+    private var dragBeganInSongRow = false
+    /// 按下时拖放剪贴板的代数。没变过的内容是上一次留下的，不能当成这次在拖歌曲。
+    private var dragPasteboardChangeCount = 0
+
+    func register(rowID: UUID, view: NSView, groupID: UUID, isGroupTop: Bool, isGroupBottom: Bool) {
+        if let anchor = anchors[rowID] {
+            anchor.view = view
+            anchor.groupID = groupID
+            anchor.isGroupTop = isGroupTop
+            anchor.isGroupBottom = isGroupBottom
+        } else {
+            anchors[rowID] = RowAnchor(
+                view: view,
+                groupID: groupID,
+                isGroupTop: isGroupTop,
+                isGroupBottom: isGroupBottom
+            )
+        }
+        ensureMonitor()
+    }
+
+    func unregister(rowID: UUID) {
+        anchors.removeValue(forKey: rowID)
+        rows.removeValue(forKey: rowID)
+        guard pointerY != nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.publish()
+        }
+    }
+
+    private func ensureMonitor() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            guard let self else { return event }
+            switch event.type {
+            case .leftMouseDown:
+                self.noteMouseDown()
+            case .leftMouseUp:
+                self.noteMouseUp()
+            default:
+                self.noteMouseDragged()
+            }
+            return event
+        }
+    }
+
+    private func noteMouseDown() {
+        dragBeganInSongRow = pointerInsideSongRow(NSEvent.mouseLocation)
+        dragPasteboardChangeCount = NSPasteboard(name: .drag).changeCount
+    }
+
+    private func noteMouseUp() {
+        if ReorderDragCenter.shared.subject == .song {
+            ReorderDragCenter.shared.setSubject(.none)
+        }
+        endDrag()
+        dragBeganInSongRow = false
+    }
+
+    /// 任意一次按下拖动都不画曲目库横条。只有判定结果是歌曲时才采样。
+    private func noteMouseDragged() {
+        let subject = currentDragSubject()
+        let sides = SectionDragMath.reorderLineSides(for: subject)
+        guard sides.songLibrary else {
+            if ReorderDragCenter.shared.subject == .song {
+                ReorderDragCenter.shared.setSubject(.none)
+            }
+            if timer != nil || claim != nil || pointerY != nil {
+                endDrag()
+            }
+            return
+        }
+        ReorderDragCenter.shared.setSubject(.song)
+        startDragging()
+    }
+
+    private func currentDragSubject() -> SectionDragMath.ReorderDragSubject {
+        let pasteboard = NSPasteboard(name: .drag)
+        let fresh = pasteboard.changeCount != dragPasteboardChangeCount
+        let types = (pasteboard.types ?? []).map(\.rawValue)
+        var strings: [String] = []
+        if let text = pasteboard.string(forType: .string) {
+            strings.append(text)
+        }
+        let utf8 = NSPasteboard.PasteboardType("public.utf8-plain-text")
+        if let text = pasteboard.string(forType: utf8), !strings.contains(text) {
+            strings.append(text)
+        }
+        return SectionDragMath.reorderDragSubject(
+            pointerBeganInsideSongRow: dragBeganInSongRow,
+            pasteboardTypeIDs: types,
+            pasteboardStrings: strings,
+            pasteboardChangeIsFresh: fresh
+        )
+    }
+
+    /// 整行矩形，含左右。宽或高不像歌曲行的视图不当成歌曲行，避免整窗误判。
+    private func pointerInsideSongRow(_ screenPoint: NSPoint) -> Bool {
+        for anchor in anchors.values {
+            guard let view = anchor.view, let window = view.window else { continue }
+            let onScreen = window.convertToScreen(view.convert(view.bounds, to: nil))
+            guard onScreen.width > 1, onScreen.width < 500,
+                  onScreen.height > 1, onScreen.height < 600 else { continue }
+            if onScreen.contains(screenPoint) { return true }
+        }
+        return false
+    }
+
+    private func startDragging() {
+        if timer == nil {
+            let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+                self?.sample()
+            }
+            let tracking = RunLoop.Mode(rawValue: "NSEventTrackingRunLoopMode")
+            RunLoop.main.add(timer, forMode: .common)
+            RunLoop.main.add(timer, forMode: tracking)
+            self.timer = timer
+        }
+        sample()
+    }
+
+    private func endDrag() {
+        timer?.invalidate()
+        timer = nil
+        pointerY = nil
+        publish()
+    }
+
+    /// 屏幕坐标原点在左下，这里改成从上往下，好和相邻行比哪一条缝更近。
+    private func sample() {
+        let down = NSEvent.pressedMouseButtons & (1 << 0) != 0
+        guard down else {
+            endDrag()
+            return
+        }
+        var spans: [UUID: SectionDragMath.SongReorderLineSpan] = [:]
+        for (id, anchor) in anchors {
+            guard let view = anchor.view, let window = view.window else { continue }
+            let onScreen = window.convertToScreen(view.convert(view.bounds, to: nil))
+            guard onScreen.height > 0 else { continue }
+            spans[id] = SectionDragMath.SongReorderLineSpan(
+                id: id,
+                minY: -onScreen.maxY,
+                height: onScreen.height,
+                groupID: anchor.groupID,
+                isGroupTop: anchor.isGroupTop,
+                isGroupBottom: anchor.isGroupBottom
+            )
+        }
+        rows = spans
+        pointerY = -NSEvent.mouseLocation.y
+        publish()
+    }
+
+    private func publish() {
+        let sides = SectionDragMath.reorderLineSides(for: ReorderDragCenter.shared.subject)
+        let next: Claim?
+        if sides.songLibrary, let pointerY {
+            let winner = SectionDragMath.exclusiveReorderClaim(
+                pointerY: pointerY,
+                rows: Array(rows.values)
+            )
+            next = winner.map { Claim(rowID: $0.id, insertsBefore: $0.insertsBefore) }
+        } else {
+            next = nil
+        }
+        if claim != next {
+            claim = next
+        }
+    }
+
+    deinit {
+        timer?.invalidate()
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
+}
+
+/// 拖动还没松手时登记这一行的位置。落点由全部歌曲行一起算，不能只看悬停的那一行。
+private struct SongReorderEdgeTracker: NSViewRepresentable {
+    var rowID: UUID
+    var groupID: UUID
+    var isGroupTop: Bool
+    var isGroupBottom: Bool
+    var lineState: SongReorderLineState
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.sync(view, from: self)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.sync(nsView, from: self)
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.lineState?.unregister(rowID: coordinator.rowID)
+    }
+
+    final class Coordinator {
+        var rowID = UUID()
+        var lineState: SongReorderLineState?
+
+        func sync(_ view: NSView, from tracker: SongReorderEdgeTracker) {
+            rowID = tracker.rowID
+            lineState = tracker.lineState
+            tracker.lineState.register(
+                rowID: tracker.rowID,
+                view: view,
+                groupID: tracker.groupID,
+                isGroupTop: tracker.isGroupTop,
+                isGroupBottom: tracker.isGroupBottom
+            )
         }
     }
 }

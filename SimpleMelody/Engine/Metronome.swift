@@ -1,4 +1,3 @@
-// Engine/Metronome.swift
 // v1.7.7 Delta: 节拍器（声音 + 视觉闪烁）
 //
 // 声音设计：
@@ -31,9 +30,7 @@ final class ClickPlayerPool {
     private var nextIndex: Int = 0
     private let lock = NSLock()
 
-    /// - Parameters:
-    ///   - url: WAV 文件 URL
-    ///   - count: 池大小（BPM 300 / 拍长 0.2s 下 8 个够用，密度更高可调大）
+    /// 池大小在每分钟 300 拍时 8 个够用，更密可以再加大。
     init?(url: URL, count: Int = 8) {
         var pool: [AVAudioPlayer] = []
         for _ in 0..<count {

@@ -1,4 +1,3 @@
-// Models/SongLanguage.swift
 // 歌曲可用语言预设（9 种：合并简繁为"中文"）
 // v1.5: 简体中文 / 繁体中文 合并为一个"中文"（code 仍是 "zh-Hans" / "zh-Hant" 内部存储，UI 显示 "中文"）
 

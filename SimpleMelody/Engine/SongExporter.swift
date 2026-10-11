@@ -1,4 +1,3 @@
-// Engine/SongExporter.swift
 // 歌曲导出器 - 导出全部信息（歌词 + 灵感 + 设定 + 笔记）
 
 import Foundation
@@ -141,7 +140,6 @@ extension SongExporter {
     }
 
     /// 一键备份所有歌曲到指定文件夹
-    /// - Parameters:
     ///   - songs: 要备份的歌曲列表
     ///   - folderURL: 目标文件夹 URL
     /// - Returns: 备份结果（成功数和失败详情）
@@ -490,7 +488,7 @@ enum SongImporter {
                     }) {
                         currentIdeaType = preset.name
                     } else {
-                        currentIdeaType = "Inspiration"  // fallback
+                        currentIdeaType = "Inspiration"
                     }
                     continue
                 }

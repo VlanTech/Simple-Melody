@@ -1,16 +1,14 @@
-// Engine/SectionLyricCodec.swift
-// v1.7.10 Extra: exclusive 译文/笔记 panel + .smelody.txt translation block.
-// SongExporter / SectionEditorView call these; tests compile this same file.
+// 译文和笔记不能同时打开。导出器和段落编辑器、测试都调用这一份。
 
 import Foundation
 
-/// Exclusive side panel: notes and translation cannot both be open.
+/// 侧栏互斥：笔记和译文不能同时打开。
 enum SectionSidePanel: Equatable {
     case none
     case notes
     case translation
 
-    /// Tap `targeting` (notes or translation): collapse if already open, otherwise switch.
+    /// 再点当前已打开的笔记或译文就收起，否则切换过去。
     static func toggling(_ current: SectionSidePanel, targeting: SectionSidePanel) -> SectionSidePanel {
         guard targeting == .notes || targeting == .translation else { return current }
         return current == targeting ? .none : targeting
@@ -29,10 +27,10 @@ struct SectionPanelState: Equatable {
 }
 
 enum SectionBatchAction {
-    /// Command applies the clicked section's direction to every section.
-    /// Sections already in the resulting state are left unchanged.
-    /// Without Command, only `clickedIndex` changes. Opening notes or translation
-    /// closes the other panel only on sections whose state actually changes.
+    /// 按住 Command 时，把所点段落的方向应用到每一段。
+    /// 已经处于结果状态的段落不动。
+    /// 没按 Command 时只改所点的那一段。打开笔记或译文时，
+    /// 只在状态真正变化的段落上关掉另一栏。
     static func apply(
         states: [SectionPanelState],
         clickedIndex: Int,
@@ -105,7 +103,7 @@ struct SectionLyricSnapshot: Equatable {
     var ruby: String = ""
 }
 
-/// What a `.smelody.txt` write includes. Song Info is always written so the file can import.
+/// 一次文本导出写哪些块。歌曲信息始终写入，否则文件无法再导入。
 struct SongExportOptions: Equatable {
     var lyrics: Bool = true
     var translation: Bool = true
@@ -116,15 +114,15 @@ struct SongExportOptions: Equatable {
     static let all = SongExportOptions()
 
     var includesLyricsSection: Bool { lyrics || translation || ruby || notes }
-    /// Readings attach to lyrics; a ruby-only file cannot round-trip.
+    /// 注音依附歌词；只有注音、没有歌词正文的文件无法往返导入。
     var writesLyricBody: Bool { lyrics || ruby }
     var includesAnything: Bool { includesLyricsSection || ideas }
 }
 
 enum SectionLyricCodec {
-    /// Stable export label so files round-trip regardless of UI language.
+    /// 导出标签固定，不随界面语言变化，文件才能往返导入。
     static let translationExportLabel = "Translation"
-    /// Same pair format as Imagine: one `汉字｜读音` line per reading.
+    /// 与创意写回相同：每条注音一行，汉字和读音用全角竖线分开。
     static let rubyExportLabel = "Ruby"
 
     static func isTranslationMarker(_ trimmed: String) -> Bool {
@@ -171,7 +169,7 @@ enum SectionLyricCodec {
         return false
     }
 
-    /// Indented block. Empty content → no lines (omitted from export).
+    /// 缩进块。内容为空就不输出，导出时整段省略。
     static func indentedBlock(label: String, content: String) -> [String] {
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
         var lines = ["", "  \(label):"]
@@ -210,8 +208,8 @@ enum SectionLyricCodec {
         return lines
     }
 
-    /// Parse 【Lyrics】 lines (markers + body + optional Ruby / Translation / notes blocks).
-    /// Files without a Ruby block stay valid; ruby is empty.
+    /// 解析歌词行：标记、正文，以及可选的注音、译文、笔记。
+    /// 没有注音块的旧文件仍然有效，注音为空。
     static func parseLyrics(_ lines: [String], extraNotesLabels: [String] = []) -> [SectionLyricSnapshot] {
         var snapshots: [SectionLyricSnapshot] = []
         var marker: String?

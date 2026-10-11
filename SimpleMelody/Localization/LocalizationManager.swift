@@ -1,4 +1,3 @@
-// Localization/LocalizationManager.swift
 // 多语言管理
 // 支持：简体中文 / 繁体中文 / 英语 / 日语 / 韩语 / 西班牙语
 // 首次启动自动识别系统语言

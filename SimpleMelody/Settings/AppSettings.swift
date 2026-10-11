@@ -1,4 +1,3 @@
-// Settings/AppSettings.swift
 // 应用偏好设置（用 UserDefaults 持久化）
 
 import Foundation

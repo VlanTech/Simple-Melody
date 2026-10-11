@@ -1,4 +1,3 @@
-// Engine/ImagineWorkflow.swift
 // Imagine：段落或全曲的翻译 / 创意。只按约定字段写回，不调用时由测试注入结果。
 
 import Foundation
@@ -398,20 +397,15 @@ enum ImagineWorkflow {
         return ApplyResult(document: wrote ? updated : document, overreach: false)
     }
 
-    /// Keep phonetic kana. Candidates after / or ／ are dropped.
-    /// Hiragana always; katakana and ー only pass through (gikun / jukujikun).
-    /// Latin, kanji, digits, spaces, and other marks are stripped.
+    /// 只保留假名。斜杠后面的候选读音丢掉。
+    /// 平假名始终保留；片假名和长音符号也保留，供义训、熟字训使用。
+    /// 拉丁字母、汉字、数字、空格和其他符号都剥掉。
     static func phoneticOnly(_ raw: String) -> String {
         let first = raw.split(whereSeparator: { $0 == "/" || $0 == "／" }).first.map(String.init) ?? raw
         return String(first.unicodeScalars.compactMap { scalar -> Character? in
             guard isPhoneticScalar(scalar.value) else { return nil }
             return Character(scalar)
         })
-    }
-
-    /// Same filter as phoneticOnly. Kept so older tests still compile.
-    static func hiraganaOnly(_ raw: String) -> String {
-        phoneticOnly(raw)
     }
 
     static func isPhoneticScalar(_ value: UInt32) -> Bool {
@@ -484,7 +478,7 @@ enum ImagineWorkflow {
         return result
     }
 
-    /// Keep only the leading ideograph run so 負けず becomes 負.
+    /// 只留开头的连续汉字，所以「負けず」变成「負」。
     static func ideographPrefix(_ ns: NSString, range: NSRange) -> NSRange {
         var length = 0
         for offset in 0..<range.length {
@@ -497,7 +491,7 @@ enum ImagineWorkflow {
         return NSRange(location: range.location, length: length)
     }
 
-    /// Drop reading characters that already sit immediately before or after the kanji.
+    /// 丢掉已经紧贴在汉字前面或后面的读音字符。
     static func stripOutsideDuplicates(lyrics ns: NSString, range: NSRange, phonetic: String) -> String {
         var reading = phonetic
         if range.location > 0 {

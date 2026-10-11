@@ -1,4 +1,3 @@
-// Localization/String+Localized.swift
 // 字符串本地化
 // 用 L("key") 调用，自动从 LocalizationManager.shared.language 查表
 

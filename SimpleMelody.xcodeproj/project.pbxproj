@@ -16,7 +16,6 @@
 		A001000000000000000000A8 /* SongEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A8 /* SongEditorView.swift */; };
 		A001000000000000000000A9 /* SectionEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000A9 /* SectionEditorView.swift */; };
 		A001000000000000000000AA /* PronunciationEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AA /* PronunciationEditorView.swift */; };
-		A001000000000000000000AB /* SelectableTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AB /* SelectableTextEditor.swift */; };
 		A001000000000000000000AC /* IdeaPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AC /* IdeaPanelView.swift */; };
 		A001000000000000000000AD /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AD /* FlowLayout.swift */; };
 		A001000000000000000000AE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B001000000000000000000AE /* Assets.xcassets */; };
@@ -60,7 +59,6 @@
 		B001000000000000000000A8 /* SongEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongEditorView.swift; sourceTree = "<group>"; };
 		B001000000000000000000A9 /* SectionEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditorView.swift; sourceTree = "<group>"; };
 		B001000000000000000000AA /* PronunciationEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationEditorView.swift; sourceTree = "<group>"; };
-		B001000000000000000000AB /* SelectableTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableTextEditor.swift; sourceTree = "<group>"; };
 		B001000000000000000000AC /* IdeaPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPanelView.swift; sourceTree = "<group>"; };
 		B001000000000000000000AD /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		B001000000000000000000AE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = "Resources/Assets.xcassets"; sourceTree = "<group>"; };
@@ -215,7 +213,6 @@
 			isa = PBXGroup;
 			children = (
 				B001000000000000000000AA /* PronunciationEditorView.swift */,
-				B001000000000000000000AB /* SelectableTextEditor.swift */,
 			);
 			path = Pronunciation;
 			sourceTree = "<group>";
@@ -364,7 +361,6 @@
 				A001000000000000000000A8 /* SongEditorView.swift in Sources */,
 				A001000000000000000000A9 /* SectionEditorView.swift in Sources */,
 				A001000000000000000000AA /* PronunciationEditorView.swift in Sources */,
-				A001000000000000000000AB /* SelectableTextEditor.swift in Sources */,
 				A001000000000000000000AC /* IdeaPanelView.swift in Sources */,
 				A001000000000000000000AD /* FlowLayout.swift in Sources */,
 				A001000000000000000000AF /* LocalizationManager.swift in Sources */,
@@ -535,7 +531,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.3;
+				MARKETING_VERSION = 1.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -563,7 +559,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.8.3;
+				MARKETING_VERSION = 1.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplemelody.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

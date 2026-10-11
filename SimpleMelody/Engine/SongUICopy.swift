@@ -1,5 +1,4 @@
-// Engine/SongUICopy.swift
-// v1.8.0: lyrics-preview caption source + single-song delete counts (including 译文).
+// 歌词预览的说明来源，以及单曲删除时的计数（含译文）。
 
 import Foundation
 import CoreGraphics
@@ -11,21 +10,21 @@ enum PreviewCaptionSource: String, CaseIterable, Equatable {
 
 struct LyricTranslationRow: Equatable {
     var lyric: String
-    /// Nil when this lyric line has no translation text. The index still matches the lyric line.
+    /// 这一行歌词没有译文时为空。下标仍与歌词行对齐。
     var translation: String?
 }
 
 enum LyricsPreviewCaption {
-    /// Empty chosen field stays hidden (`nil`). Notes stay one block under the lyrics.
+    /// 选中的字段为空就不显示。笔记仍是歌词下方的一整块。
     static func text(notes: String, translation: String, source: PreviewCaptionSource) -> String? {
         let raw = source == .notes ? notes : translation
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : raw
     }
 
-    /// Translation preview: line i of the translation sits under line i of the lyrics.
-    /// A blank translation line stays nil so later lines do not shift up.
-    /// Extra translation lines are kept, with an empty lyric.
+    /// 译文预览：第几行译文就放在第几行歌词下面。
+    /// 空的译文行保持为空，后面的行不会上移。
+    /// 多出来的译文保留，对应歌词为空。
     static func translationRows(body: String, translation: String) -> [LyricTranslationRow] {
         let lyricsBlank = body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let translationBlank = translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -47,7 +46,7 @@ enum SongDeleteSummary {
         translations.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
     }
 
-    /// Detail line under the trash title for a single song.
+    /// 单曲移入回收站时，标题下面的那一行明细。
     static func formatCountsLine(
         sectionCount: Int,
         ideaCount: Int,

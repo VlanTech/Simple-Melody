@@ -1,4 +1,3 @@
-// Settings/UsageGuideView.swift
 // 使用指南（与更新日志同格式，按 LocalizationManager 语言适配）
 //
 // 数据源 UsageGuideContent.sections(for:) 按当前界面语言返回不同 markdown 内容
@@ -201,9 +200,9 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 
 **折叠 / 展开**：点击段落头右侧箭头；双击段落标题行也可切换。
 
-**段落拖动**（设置里默认关闭）：
-- 开启后：拖到目标段上半插入其前、下半插入其后；靠近列表顶部会自动向上滚动
-- 歌词编辑栏不会把段落编号写进正文
+**段落重排**：左键长按后拖动。拖到目标段上半插入其前、下半插入其后；靠近列表顶部会自动向上滚动。歌词编辑栏不会把段落编号写进正文。
+
+**Imagine 和删除**：长按右键再拖动（触控板双指拖动，不必按下）。向右拖出左边蓝色的 Imagine，向左拖出右边红色的删除。右键点一下、不拖动，仍打开段落菜单。
 
 **编辑栏**：高度随内容伸缩。光标在编辑栏里时，滚轮仍能滚外层页面。
 """),
@@ -212,7 +211,7 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 
 **入口**：
 - **Imagine**（导出按钮左边）：处理整首歌
-- **段落Imagine**（歌词段落向右滑，左边蓝色按钮）：只处理这一段
+- **段落Imagine**（长按右键向右拖动，左边蓝色按钮；触控板双指拖动，不必按下）：只处理这一段
 
 点开后选 **翻译**、**创意** 或 **注音**。
 
@@ -276,8 +275,6 @@ Simple Melody 是一款 macOS 原生歌词创作工具。打开后主窗口会�
 **接入大模型**：供应商网址、模型名（可留空）、API Key。保存后可「测试连接」
 
 **数据管理**：删除前确认、一键备份曲目库
-
-**段落拖动**：默认关闭。开启前会提示
 
 **技能炼成**：把词炼成 / 曲炼成 Skill 导出给能处理文件的模型使用
 
@@ -358,9 +355,9 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 
 **折疊 / 展開**：點擊段落頭右側箭頭；雙擊段落標題行也可切換。
 
-**段落拖動**（設定裡預設關閉）：
-- 開啟後：拖到目標段上半插入其前、下半插入其後；靠近列表頂部會自動向上捲動
-- 歌詞編輯欄不會把段落編號寫進正文
+**段落重排**：左鍵長按後拖動。拖到目標段上半插入其前、下半插入其後；靠近列表頂部會自動向上捲動。歌詞編輯欄不會把段落編號寫進正文。
+
+**Imagine 和刪除**：長按右鍵再拖動（觸控板雙指拖動，不必按下）。向右拖出左邊藍色的 Imagine，向左拖出右邊紅色的刪除。右鍵點一下、不拖動，仍打開段落選單。
 
 **編輯欄**：高度隨內容伸縮。游標在編輯欄裡時，滾輪仍能滾外層頁面。
 """),
@@ -369,7 +366,7 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 
 **入口**：
 - **Imagine**（匯出按鈕左邊）：處理整首歌
-- **段落Imagine**（歌詞段落向右滑，左邊藍色按鈕）：只處理這一段
+- **段落Imagine**（長按右鍵向右拖動，左邊藍色按鈕；觸控板雙指拖動，不必按下）：只處理這一段
 
 點開後選 **翻譯**、**創意** 或 **注音**。
 
@@ -434,8 +431,6 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 
 **資料管理**：刪除前確認、一鍵備份曲目庫
 
-**段落拖動**：預設關閉。開啟前會提示
-
 **技能煉成**：把詞煉成 / 曲煉成 Skill 匯出給能處理檔案的模型使用
 
 **說明**：更新日誌、本使用指南
@@ -444,7 +439,7 @@ Simple Melody 是一款 macOS 原生歌詞創作工具。打開後主視窗會�
 """),
     ]
 
-    // MARK: English
+    // MARK: 英语
 
     private static let enSections: [Section] = [
         Section(icon: "wand.and.stars", title: "Quick Start", bodyMarkdown: """
@@ -515,9 +510,9 @@ Simple Melody is a native macOS lyric-writing app. The main window fills the scr
 
 **Collapse/Expand**: click the arrow on the section header; double-click also toggles.
 
-**Section Drag** (off by default in Settings):
-- Drop on the top half of a section to insert before it, bottom half to insert after; the list auto-scrolls near the top
-- The lyrics editor never pastes a section id into the text
+**Reorder**: long-press with the left button, then drag. Drop on the top half of a section to insert before it, the bottom half to insert after; the list auto-scrolls near the top. The lyrics editor never pastes a section id into the text.
+
+**Imagine and delete**: long-press the right button, then drag (a two-finger drag on a trackpad, no press). Dragging right reveals the blue Imagine button on the left; dragging left reveals the red delete button on the right. A right-click without a drag still opens the section menu.
 
 **Editor height** grows with content. Scrolling the mouse while the cursor is in the editor still scrolls the outer page.
 """),
@@ -526,7 +521,7 @@ Fill in the provider URL and API key in Settings first. The model name may be em
 
 **Where to start**:
 - **Imagine** (left of Export): the whole song
-- **Section Imagine** (swipe a lyric section right, blue button on the left): only that section
+- **Section Imagine** (right-button long-press drag to the right, blue button on the left; two-finger drag on a trackpad, no press): only that section
 
 Choose **Translation**, **Creative**, or **Furigana**.
 
@@ -589,8 +584,6 @@ Click the toolbar gear. Settings opens in the **right column** and has no close 
 **LLM**: provider URL, model name (optional), API key. Save, then Test connection
 
 **Data**: confirm before delete; one-click library backup
-
-**Section Drag**: off by default; turning it on asks first
 
 **Skill Integrated**: export Lyric Forge / Music Forge skills to a model that can handle files
 
@@ -671,9 +664,9 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 
 **折りたたみ / 展開**: セクションヘッダーの矢印をクリック。ダブルクリックでも切替。
 
-**セクションドラッグ**（設定では既定オフ）:
-- 上半分にドロップするとその前、下半分だとその後へ挿入。リスト上部付近では自動で上スクロール
-- 歌詞エディタにセクション ID は入りません
+**並べ替え**：左ボタンを長押ししてからドラッグします。上半分にドロップするとその前、下半分だとその後へ挿入。リスト上部付近では自動で上スクロールします。歌詞エディタにセクション ID は入りません。
+
+**Imagine と削除**：右ボタンを長押ししてからドラッグします（トラックパッドは二本指ドラッグ、押し込み不要）。右へ動かすと左の青い Imagine、左へ動かすと右の赤い削除が出ます。ドラッグしない右クリックは、これまでどおりセクションメニューです。
 
 **エディタの高さ**は内容に合わせて伸びます。カーソルがエディタ内でもホイールでページ全体をスクロールできます。
 """),
@@ -682,7 +675,7 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 
 **入口**:
 - **Imagine**（書き出しの左）：曲全体
-- **段落Imagine**（歌詞セクションを右に滑らせ、左の青いボタン）：そのセクションだけ
+- **段落Imagine**（右ボタンの長押しを右へドラッグ、左の青いボタン。トラックパッドは二本指ドラッグ、押し込み不要）：そのセクションだけ
 
 **翻訳**、**創作**、**ふりがな** を選べます。
 
@@ -746,8 +739,6 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 
 **データ**: 削除前の確認、ライブラリの一括バックアップ
 
-**セクションドラッグ**: 既定オフ。オンにする前に確認します
-
 **スキル錬成**: 作詞 / 作曲の Skill を、ファイルを扱えるモデルへ書き出します
 
 **ヘルプ**: 変更履歴、この使用ガイド
@@ -756,7 +747,7 @@ Simple Melody は macOS ネイティブの歌詞作成ツールです。起動�
 """),
     ]
 
-    // MARK: 한국어
+    // MARK: 韩语
 
     private static let koSections: [Section] = [
         Section(icon: "wand.and.stars", title: "빠른 시작", bodyMarkdown: """
@@ -824,9 +815,9 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 
 **접기 / 펼치기**: 섹션 머리의 화살표. 두 번 클릭도 됩니다.
 
-**섹션 끌기**(설정에서 기본 꺼짐):
-- 위쪽에 놓으면 앞, 아래쪽에 놓으면 뒤. 목록 위쪽에서는 자동으로 위로 스크롤
-- 가사 칸에 섹션 번호가 들어가지 않습니다
+**순서 바꾸기**: 왼쪽 버튼을 길게 누른 뒤 끕니다. 위쪽에 놓으면 앞, 아래쪽에 놓으면 뒤입니다. 목록 위쪽에서는 자동으로 위로 스크롤됩니다. 가사 칸에 섹션 번호가 들어가지 않습니다.
+
+**Imagine과 삭제**: 오른쪽 버튼을 길게 누른 뒤 끕니다(트랙패드는 두 손가락 드래그, 누르지 않아도 됨). 오른쪽으로 끌면 왼쪽의 파란 Imagine, 왼쪽으로 끌면 오른쪽의 빨간 삭제가 나옵니다. 드래그하지 않는 우클릭은 그대로 섹션 메뉴입니다.
 
 **편집기 높이**는 내용에 맞춰 늘어납니다. 커서가 안에 있어도 휠로 바깥 페이지를 굴릴 수 있습니다.
 """),
@@ -835,7 +826,7 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 
 **시작 위치**:
 - **Imagine**(내보내기 왼쪽): 곡 전체
-- **단락 Imagine**(가사 섹션을 오른쪽으로 밀면 왼쪽 파란 버튼): 그 섹션만
+- **단락 Imagine**(오른쪽 버튼을 길게 눌러 오른쪽으로 끌기, 왼쪽 파란 버튼. 트랙패드는 두 손가락 드래그, 누르지 않아도 됨): 그 섹션만
 
 **번역**, **창작**, **후리가나**를 고릅니다.
 
@@ -899,8 +890,6 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 
 **데이터**: 지우기 전 확인, 라이브러리 한 번에 백업
 
-**섹션 끌기**: 기본 꺼짐. 켜기 전에 물어봅니다
-
 **스킬 연마**: 작사 / 작곡 스킬을 파일을 다룰 수 있는 모델로 내보냅니다
 
 **도움말**: 변경 기록, 이 사용 가이드
@@ -909,7 +898,7 @@ Simple Melody는 macOS 네이티브 가사 작성 앱입니다. 열면 메인 �
 """),
     ]
 
-    // MARK: Español
+    // MARK: 西班牙语
 
     private static let esSections: [Section] = [
         Section(icon: "wand.and.stars", title: "Inicio rápido", bodyMarkdown: """
@@ -976,9 +965,9 @@ Simple Melody es una app nativa de macOS para escribir letras. Al abrirla, la ve
 
 **Plegar / desplegar**: la flecha del encabezado; también con doble clic.
 
-**Arrastre de secciones** (apagado por defecto en Ajustes):
-- Suelta en la mitad superior para insertar antes, en la inferior para después; cerca del borde superior la lista se desplaza sola
-- El editor no pega un identificador de sección en la letra
+**Reordenar**: mantén pulsado el botón izquierdo y arrastra. Suelta en la mitad superior para insertar antes, en la inferior para después; cerca del borde superior la lista se desplaza sola. El editor no pega un identificador de sección en la letra.
+
+**Imagine y eliminar**: mantén pulsado el botón derecho y arrastra (dos dedos en el trackpad, sin pulsar). Hacia la derecha sale el botón azul de Imagine a la izquierda; hacia la izquierda sale el botón rojo de eliminar a la derecha. Un clic derecho sin arrastrar sigue abriendo el menú de la sección.
 
 **La altura del editor** crece con el contenido. Con el cursor dentro, la rueda sigue desplazando la página.
 """),
@@ -987,7 +976,7 @@ Primero rellena en Ajustes la URL del proveedor y la clave de API. El nombre del
 
 **Dónde empezar**:
 - **Imagine** (a la izquierda de Exportar): toda la canción
-- **Imagine de sección** (desliza una sección a la derecha, botón azul a la izquierda): solo esa sección
+- **Imagine de sección** (arrastre largo con el botón derecho hacia la derecha, botón azul a la izquierda; dos dedos en el trackpad, sin pulsar): solo esa sección
 
 Elige **Traducción**, **Creativo** o **Furigana**.
 
@@ -1050,8 +1039,6 @@ Pulsa el engranaje. Ajustes se abre en la **columna derecha** y no tiene botón 
 **LLM**: URL del proveedor, nombre del modelo (opcional), clave de API. Guarda y luego prueba la conexión
 
 **Datos**: confirmar antes de borrar; copia de la biblioteca de un clic
-
-**Arrastre de secciones**: apagado por defecto; al encenderlo pregunta
 
 **Habilidades integradas**: exporta las skills de letra / música a un modelo que pueda manejar archivos
 

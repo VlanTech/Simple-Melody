@@ -1,6 +1,4 @@
-// SimpleMelodyApp.swift
 // 应用入口
-// Created by Mavis for Simple Melody
 
 import SwiftUI
 import SwiftData

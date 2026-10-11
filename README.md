@@ -17,28 +17,28 @@
 
 <br>
 
-# 下载最新版 · v1.8.3
+# 下载最新版 · v1.8.4
 
 <p align="center">
-  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.3/SimpleMelody-1.8.3.dmg">
-    <img src="https://img.shields.io/badge/⬇%20下载%20SimpleMelody--1.8.3.dmg-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download SimpleMelody-1.8.3.dmg">
+  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.4/SimpleMelody-1.8.4.dmg">
+    <img src="https://img.shields.io/badge/⬇%20下载%20SimpleMelody--1.8.4.dmg-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Download SimpleMelody-1.8.4.dmg">
   </a>
 </p>
 
 <p align="center">
   <b>推荐：</b>
-  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.3/SimpleMelody-1.8.3.dmg"><code>SimpleMelody-1.8.3.dmg</code></a>
-  （约 5.4 MB）
+  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.4/SimpleMelody-1.8.4.dmg"><code>SimpleMelody-1.8.4.dmg</code></a>
+  （约 5.6 MB）
   &nbsp;·&nbsp;
   <a href="https://github.com/VlanTech/Simple-Melody/releases/latest">GitHub Releases</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.3/SimpleMelody-1.8.3.zip">备用 ZIP</a>
+  <a href="https://github.com/VlanTech/Simple-Melody/releases/download/v1.8.4/SimpleMelody-1.8.4.zip">备用 ZIP</a>
 </p>
 
 仓库根目录也放了同一份安装包，方便直接点开：
 
-- [`SimpleMelody-1.8.3.dmg`](./SimpleMelody-1.8.3.dmg)
-- [`SimpleMelody-1.8.3.zip`](./SimpleMelody-1.8.3.zip)
+- [`SimpleMelody-1.8.4.dmg`](./SimpleMelody-1.8.4.dmg)
+- [`SimpleMelody-1.8.4.zip`](./SimpleMelody-1.8.4.zip)
 
 安装：打开 `.dmg`，把 `Simple Melody.app` 拖进「应用程序」。
 
@@ -59,7 +59,7 @@ Simple Melody 不是 DAW，也不是富文本编辑器。它是给「一个写�
 - **读音标注**：汉字上方小字假名；手动添加，或用 Imagine 给日语歌词注音（自动注音已弃用）
 - **灵感与设定**：灵感 / 设定 / 背景 / 备注，独立于歌词正文，导出时不会混进去
 - **歌词预览**（笔记为整段小字；译文按行配对）、**节拍器**、深浅色主题、启动检查更新
-- **Imagine**：导出旁处理整首歌；段落向右滑处理这一段。翻译 / 创意 / 注音，接入自备大模型。创意写日语词时默认注音
+- **Imagine**：导出旁处理整首歌。段落上长按右键拖动，或触控板双指拖动（不必按下）：向右打开这一段的 Imagine，向左打开删除。翻译 / 创意 / 注音，接入自备大模型。创意写日语词时默认注音
 - **设置**：右边栏打开。字体大小只改文字、窗口不变；主窗口启动铺满屏幕
 - **技能炼成**：从 App 内导出「词炼成 / 曲炼成」Skill，交给能处理文件的模型使用
 - **六语界面**：简体中文 / 繁體中文 / English / 日本語 / 한국어 / Español
@@ -94,10 +94,10 @@ open build/Build/Products/Release/SimpleMelody.app
 
 ```
 Simple-Melody/
-├── SimpleMelody-1.8.3.dmg       # 最新安装包（显眼放在根目录）
-├── SimpleMelody-1.8.3.zip
+├── SimpleMelody-1.8.4.dmg       # 最新安装包（显眼放在根目录）
+├── SimpleMelody-1.8.4.zip
 ├── SimpleMelody.xcodeproj/      # Xcode 工程
-├── SimpleMelody/                # 应用源码（v1.8.3）
+├── SimpleMelody/                # 应用源码（v1.8.4）
 ├── skills/                      # 词炼成 / 曲炼成（与 App 内置 Skill 内容一致）
 │   ├── smelody-lyric-create/SKILL.md
 │   └── smelody-music-create/SKILL.md

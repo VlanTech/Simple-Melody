@@ -1,4 +1,3 @@
-// Views/Settings/SettingsView.swift
 // 设置面板（v1.3 重构）
 // 顶部可扩展内容（主题/语言/备份/删除警告/更新日志）
 // 底部固定"关于 Simple Melody"（永远最底，版本号 + 开发者署名 Vlan_Tech）
@@ -21,10 +20,6 @@ struct SettingsView: View {
     @State private var apiTesting = false
     @State private var apiTestMessage = ""
     private let apiKeyStore = LLMAPIKeyStore()
-
-    /// v1.7.9 GT: 段落拖动开关（默认关闭，开启时弹警告）
-    @AppStorage("sectionDragEnabled") private var sectionDragEnabled: Bool = false
-    @State private var showDragWarningAlert: Bool = false
 
     /// v1.4: 用 OpenWindowAction 打开独立 changelog window
     @Environment(\.openWindow) private var openWindow
@@ -225,38 +220,6 @@ struct SettingsView: View {
 
                     // 技能炼成（v1.7.6 Gamma：词炼成 + 曲炼成的导出入口，位置在帮助上方）
 
-                    // v1.7.9 GT: 段落拖动开关（恢复——开关关闭时启用左滑删除，开启时启用任意位置拖动）
-                    SettingsGroup(title: L("段落拖动"), icon: "rectangle.3.group") {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L("拖动段落重排"))
-                                    .appFont(13, weight: .medium)
-                                Text(L("段落拖动开关说明"))
-                                    .appFont(11)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            SystemSwitchToggle(isOn: $sectionDragEnabled)
-                                .frame(width: 38, height: 22)
-                                .fixedSize()
-                        }
-                    }
-                    .onChange(of: sectionDragEnabled) { _, newValue in
-                        if newValue {
-                            showDragWarningAlert = true
-                        }
-                    }
-                    .alert(L("开启段落拖动功能？"), isPresented: $showDragWarningAlert) {
-                        Button(L("取消"), role: .cancel) {
-                            sectionDragEnabled = false
-                        }
-                        Button(L("继续开启")) {
-                            // 确认开启：歌词编辑栏已拒绝段落 id 落入正文
-                        }
-                    } message: {
-                        Text(L("段落拖动开关说明"))
-                    }
-
                     SettingsGroup(title: L("技能炼成"), icon: "wand.and.stars") {
                         VStack(alignment: .leading, spacing: 10) {
                             Button {
@@ -362,8 +325,7 @@ struct SettingsView: View {
                 .padding(16)
             }
         }
-        .frame(width: RightColumnMetrics.layout(for: .settings).minWidth)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             let saved = apiKeyStore.current()
@@ -389,7 +351,6 @@ struct SettingsView: View {
         )
     }
 
-    // MARK: Header
 
     private var header: some View {
         HStack(spacing: 10) {

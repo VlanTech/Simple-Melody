@@ -1,4 +1,3 @@
-// Theme/ThemeManager.swift
 // 主题管理（跟随系统 / 强制浅色 / 强制深色）
 
 import SwiftUI

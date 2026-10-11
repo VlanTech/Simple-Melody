@@ -1,4 +1,3 @@
-// Views/ContentView.swift
 // 三栏根视图：左侧曲目 / 中间编辑 / 右侧（灵感 / 歌词预览）
 // v1.7: 右栏两个互斥模块（灵感与设定 / 歌词预览），toolbar 双 toggle 切换
 
@@ -59,30 +58,12 @@ struct ContentView: View {
                 searchText: $sidebarSearchText
             )
                 .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 380)
-        } content: {
-            ZStack {
-                if let id = editingSongID, let song = songs.first(where: { $0.id == id }) {
-                    SongEditorView(
-                        song: song,
-                        showSectionPanel: $showSectionPanel,
-                        activeSectionID: $activeSectionID,
-                        focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange
-                    )
-                    .navigationSplitViewColumnWidth(min: 600, ideal: 780)
-                    .id(song.id)  // 用 .id + transition 触发丝滑过渡动画
-                    // v1.7.9 Delta+: 强制统一从右往左（不再方向感知；快速切换不再出现反向动画）
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .leading)),
-                        removal: .opacity.combined(with: .move(edge: .trailing))
-                    ))
-                } else {
-                    EmptySongView()
-                        .navigationSplitViewColumnWidth(min: 600, ideal: 780)
-                        .transition(.opacity)
-                }
-            }
         } detail: {
-            detailContent
+            // 右栏不走分栏宽度约束：那个值一变就跳。编辑区让出的宽度由这里插值。
+            HStack(spacing: 0) {
+                editorColumn
+                rightColumn
+            }
         }
         .navigationTitle("")
         .focusedValue(\.selectedSongID, editingSongID)
@@ -149,15 +130,44 @@ struct ContentView: View {
         selectedSongIDs.subtract(idsToRemove)
     }
 
-    /// 右栏内容（v1.7: 互斥显示灵感或预览）
+    /// 中间歌词编辑区。最小宽度固定，不跟右栏一起被挤没。
+    private var editorColumn: some View {
+        ZStack {
+            if let id = editingSongID, let song = songs.first(where: { $0.id == id }) {
+                SongEditorView(
+                    song: song,
+                    showSectionPanel: $showSectionPanel,
+                    activeSectionID: $activeSectionID,
+                    focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange
+                )
+                .id(song.id)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .leading)),
+                    removal: .opacity.combined(with: .move(edge: .trailing))
+                ))
+            } else {
+                EmptySongView()
+                    .transition(.opacity)
+            }
+        }
+        .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// 灵感、歌词预览、设置共用这一条。宽度按模式在 0、320、480 之间伸缩。
+    private var rightColumn: some View {
+        let width = RightColumnMetrics.layout(for: rightPanelMode).idealWidth
+        return detailContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(width: width, alignment: .leading)
+            .overlay(alignment: .leading) { Divider() }
+            .clipped()
+            .allowsHitTesting(rightPanelMode != .off)
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: rightPanelMode)
+    }
+
+    /// 右栏内容。灵感、歌词预览、设置互斥。
     @ViewBuilder
     private var detailContent: some View {
-        // v1.7.9 Delta+: ZStack + transition，transition 按 rightPanelMode 动态生成（按钮位置决定方向）
-        // - 灵感按钮在左 → idea 视图从左划入（leading）
-        // - 预览按钮在右 → preview 视图从右划入（trailing）
-        // - off → detail column 宽度收缩到 0（用 .navigationSplitViewColumnWidth 动态控制），让歌词编辑区占满空间
-        //   注意：不用 columnVisibility 切换（.doubleColumn 会隐藏 sidebar），只控 detail column 宽度
-        // - 快速切换防错：每次 rightPanelMode 变化时 body 重新求值，transition modifier 重算，下次 add/remove 用新 transition
         ZStack {
             switch rightPanelMode {
             case .off:
@@ -191,13 +201,6 @@ struct ContentView: View {
                     .transition(rightPanelTransition(target: .settings))
             }
         }
-        .navigationSplitViewColumnWidth(
-            min: RightColumnMetrics.layout(for: rightPanelMode).minWidth,
-            ideal: RightColumnMetrics.layout(for: rightPanelMode).idealWidth,
-            max: RightColumnMetrics.layout(for: rightPanelMode).maxWidth
-        )
-        // v1.7.9 Delta+: 右栏切换动画（spring，0.35s）
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: rightPanelMode)
     }
 
     /// 进入边来自 RightColumnMetrics。move + opacity，spring 仍是右栏已有的那一个。
@@ -243,34 +246,41 @@ struct ContentView: View {
         }
     }
 
-    /// 灵感 toggle：开时设 .idea，关时切到 .off
+    /// 灵感开关：打开为灵感，关闭则收起右栏。
     private var ideaToggleBinding: Binding<Bool> {
         Binding(
             get: { rightPanelMode == .idea },
             set: { newValue in
-                rightPanelMode = newValue ? .idea : .off
+                setRightPanel(newValue ? .idea : .off)
             }
         )
     }
 
-    /// 设置 toggle：开时设 .settings，关时切到 .off
+    /// 设置开关：打开为设置，关闭则收起右栏。
     private var settingsToggleBinding: Binding<Bool> {
         Binding(
             get: { rightPanelMode == .settings },
             set: { newValue in
-                rightPanelMode = newValue ? .settings : .off
+                setRightPanel(newValue ? .settings : .off)
             }
         )
     }
 
-    /// 预览 toggle：开时设 .preview，关时切到 .off
+    /// 预览开关：打开为歌词预览，关闭则收起右栏。
     private var previewToggleBinding: Binding<Bool> {
         Binding(
             get: { rightPanelMode == .preview },
             set: { newValue in
-                rightPanelMode = newValue ? .preview : .off
+                setRightPanel(newValue ? .preview : .off)
             }
         )
+    }
+
+    /// 同一条弹簧：宽度从 0、320、480 之间过去，内容的滑入也走这一次。
+    private func setRightPanel(_ mode: RightPanelMode) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            rightPanelMode = mode
+        }
     }
 
     private func createNewSong() {

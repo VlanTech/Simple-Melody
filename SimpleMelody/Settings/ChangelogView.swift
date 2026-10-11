@@ -1,4 +1,3 @@
-// Settings/ChangelogView.swift
 // 更新日志窗口（支持 Markdown 渲染）
 // v1.4: 改为独立 Window scene，自带标题栏 + cmd+W 正常工作
 // 每次更新必须把新版本接在上方，不删除旧版本
@@ -29,7 +28,6 @@ struct ChangelogView: View {
 
  var body: some View {
  VStack(spacing: 0) {
- // Header
  HStack(spacing: 10) {
  Image(systemName: "doc.text.magnifyingglass")
  .appFont(18, weight: .medium)
@@ -175,9 +173,62 @@ enum ChangelogContent {
 
 static let entries: [Entry] = [
         Entry(
+            version: "v1.8.4",
+            date: "2026-10-11",
+            isLatest: true,
+            bodyMarkdown: """
+【修复】
+• 修复注音文字显示位置异常
+• 修复多处拖动交互异常
+【改动】
+• 取消设置中的段落拖动开关。左键长按拖动重排段落；长按右键拖动（触控板双指拖动）向右打开 Imagine，向左打开删除
+• 触控板不按下的双指拖动也可以：向右打开 Imagine，向左打开删除。上下双指滑动仍滚动页面
+""",
+            bodyMarkdownZHT: """
+【修復】
+• 修正注音文字顯示位置異常
+• 修正多處拖動互動異常
+【改動】
+• 取消設定中的段落拖動開關。左鍵長按拖動重排段落；長按右鍵拖動（觸控板雙指拖動）向右打開 Imagine，向左打開刪除
+• 觸控板不按下的雙指拖動也可以：向右打開 Imagine，向左打開刪除。上下雙指滑動仍滾動頁面
+""",
+            bodyMarkdownEN: """
+【Fixed】
+• Fixed furigana text showing in the wrong place
+• Fixed several drag interactions that behaved incorrectly
+【Changed】
+• Removed the Section Drag switch in Settings. A left-button long-press drag reorders a section; a right-button long-press drag (two-finger drag on a trackpad) opens Imagine when dragged right and delete when dragged left
+• A two-finger drag on the trackpad also works without pressing down: right opens Imagine, left opens delete. A vertical two-finger slide still scrolls the page
+""",
+            bodyMarkdownJA: """
+【修正】
+• ふりがなの文字が表示される位置の異常を修正しました
+• ドラッグ操作の複数の異常を修正しました
+【変更】
+• 設定のセクションドラッグのスイッチをやめました。左ボタンの長押しドラッグで並べ替え、右ボタンの長押しドラッグ（トラックパッドは二本指ドラッグ）では右へ動かすと Imagine、左へ動かすと削除が出ます
+• トラックパッドで押し込まず二本指でドラッグしても同じです。右で Imagine、左で削除。上下の二本指はこれまでどおりスクロールです
+""",
+            bodyMarkdownKO: """
+【수정】
+• 후리가나 글자가 표시되는 위치 이상을 고쳤습니다
+• 여러 곳의 드래그 조작 이상을 고쳤습니다
+【변경】
+• 설정의 섹션 드래그 스위치를 없앴습니다. 왼쪽 버튼을 길게 눌러 끌면 순서를 바꾸고, 오른쪽 버튼을 길게 눌러 끌면(트랙패드는 두 손가락 드래그) 오른쪽으로 Imagine, 왼쪽으로 삭제가 열립니다
+• 트랙패드에서 누르지 않고 두 손가락으로 끌어도 같습니다. 오른쪽은 Imagine, 왼쪽은 삭제입니다. 위아래 두 손가락은 그대로 페이지를 스크롤합니다
+""",
+            bodyMarkdownES: """
+【Corrección】
+• Se corrigió la posición anómala del texto de furigana
+• Se corrigieron varias interacciones de arrastre que fallaban
+【Cambios】
+• Se quitó el interruptor de arrastrar secciones en Ajustes. Un arrastre largo con el botón izquierdo reordena; un arrastre largo con el botón derecho (dos dedos en el trackpad) abre Imagine hacia la derecha y eliminar hacia la izquierda
+• En el trackpad, arrastrar con dos dedos sin pulsar hace lo mismo: a la derecha Imagine, a la izquierda eliminar. Dos dedos en vertical siguen desplazando la página
+"""
+        ),
+        Entry(
             version: "v1.8.3",
             date: "2026-09-30",
-            isLatest: true,
+            isLatest: false,
             bodyMarkdown: """
 【新增】
 • 新增Imagine的AI日语注音功能，优化了旧版注音功能交互

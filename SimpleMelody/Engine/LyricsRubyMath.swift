@@ -1,6 +1,4 @@
-// Engine/LyricsRubyMath.swift
-// Lyrics + annotation ranges → NSAttributedString with CoreText ruby above the base run.
-// Storage stays the plain lyrics string; ruby is display-only.
+// 把歌词和注音范围画成正文上方的振假名。存盘仍是纯文本，注音只用于显示。
 
 import AppKit
 import CoreText
@@ -34,13 +32,13 @@ enum LyricsRubyMath {
         ceil(font.ascender - font.descender)
     }
 
-    /// Same bar as the song-search `TextField`: AppKit default thickness, not a custom fat fill.
+    /// 粗细与搜索曲目输入框一致，用系统默认，不自绘粗条。
     static let systemCaretWidth: CGFloat = 2
 
-    /// Same color as the song-search field (accent / system insertion), not body text.
+    /// 颜色与搜索框的系统插入点一致，不用正文颜色。
     static var caretColor: NSColor { .textInsertionPointColor }
 
-    /// Linear slide when the insertion point jumps to another glyph.
+    /// 插入点跳到另一个字形时，做一次线性滑动。
     static let caretMoveDuration: TimeInterval = 0.1
 
     static let caretMoveThreshold: CGFloat = 0.5
@@ -56,10 +54,10 @@ enum LyricsRubyMath {
             || abs(from.minY - to.minY) > caretMoveThreshold
     }
 
-    /// Insertion point sits on the base glyphs, not the ruby band above them.
-    /// A full fragment (base + extra) is pinned to the kanji at the bottom.
-    /// A font-height caret on a ruby line is shifted down by the ruby extra —
-    /// AppKit often places that shorter caret at the top of the fragment, on the kana.
+    /// 插入点落在汉字上，不落在上方的注音带。
+    /// 整段行高（正文加注音）时，光标钉在底部汉字。
+    /// 注音行上只有字号那么高的光标要下移一个注音高度，
+    /// 否则系统常把它画在行片段顶部，压到假名上。
     static func caretRect(
         from rect: CGRect,
         extraRubyHeight: CGFloat,
@@ -84,7 +82,7 @@ enum LyricsRubyMath {
         )
     }
 
-    /// System insertion box: kanji-band geometry, search-field thickness.
+    /// 系统插入点：几何位置在汉字带，粗细与搜索框相同。
     static func insertionRect(
         fragment: CGRect,
         extraRubyHeight: CGFloat,
@@ -155,25 +153,65 @@ enum LyricsRubyMath {
         return .keep(rangeStart: clampedLower, rangeLength: clampedLength)
     }
 
-    /// The lyrics box is an I-beam everywhere; the arrow shows only over a
-    /// reading the user can click (the kana drawn above an annotated kanji).
+    /// 歌词框里默认是文本光标；只有停在可点击的注音（汉字上方的假名）上才换成箭头。
     static func pointerKind(overTappableRuby: Bool) -> PointerKind {
         overTappableRuby ? .arrow : .iBeam
     }
 
-    /// Clickable area of one drawn reading, in text-container coordinates:
-    /// the ruby band at the top of the line fragment, widened when the reading
-    /// overhangs its kanji. The caller adds `textContainerOrigin`.
+    /// 本行栏边与文字视图边取交集。视图还没宽度时只用行边。
+    static func rubyColumnLimit(
+        lineMinX: CGFloat,
+        lineMaxX: CGFloat,
+        viewMinX: CGFloat,
+        viewMaxX: CGFloat
+    ) -> (minX: CGFloat, maxX: CGFloat) {
+        let minX = max(lineMinX, viewMinX)
+        let maxX = min(lineMaxX, viewMaxX)
+        if maxX <= minX {
+            return (lineMinX, lineMaxX)
+        }
+        return (minX, maxX)
+    }
+
+    /// 注音默认以汉字为中心。左边会画出栏外时向右错开，右边同样贴住栏边向左收。
+    /// 读音比整栏还宽时贴住左边，多出的部分由绘制裁切。栏宽无效时保持居中。
+    static func rubyDrawX(
+        baseMinX: CGFloat,
+        baseWidth: CGFloat,
+        rubyWidth: CGFloat,
+        limitMinX: CGFloat,
+        limitMaxX: CGFloat
+    ) -> CGFloat {
+        let centered = baseMinX + (baseWidth - rubyWidth) / 2
+        let minX = min(limitMinX, limitMaxX)
+        let maxX = max(limitMinX, limitMaxX)
+        let room = maxX - minX
+        if room <= 0 {
+            return centered
+        }
+        if rubyWidth >= room {
+            return minX
+        }
+        return min(max(centered, minX), maxX - rubyWidth)
+    }
+
+    /// 一条注音的可点区域，坐标系是文本容器：
+    /// 在行片段顶部的注音带，读音比汉字宽时向两侧伸出。
+    /// 给出栏边时与绘制使用同一处起点，不越出左右。调用方再加文本容器原点。
     static func rubyHitRect(
         baseBox: CGRect,
         rubyWidth: CGFloat,
         lineMinY: CGFloat,
-        extraRubyHeight: CGFloat
+        extraRubyHeight: CGFloat,
+        limitMinX: CGFloat? = nil,
+        limitMaxX: CGFloat? = nil
     ) -> CGRect {
         let (minX, maxX) = rubyHitXRange(
             baseMinX: baseBox.minX,
             baseWidth: baseBox.width,
-            rubyWidth: rubyWidth
+            rubyWidth: rubyWidth,
+            limitMinX: limitMinX,
+            limitMaxX: limitMaxX
         )
         return CGRect(
             x: minX,
@@ -183,23 +221,48 @@ enum LyricsRubyMath {
         )
     }
 
-    /// Drawn ruby is centered on the base box and may be wider (overhang).
-    static func rubyHitXRange(baseMinX: CGFloat, baseWidth: CGFloat, rubyWidth: CGFloat) -> (minX: CGFloat, maxX: CGFloat) {
+    /// 画出来的注音以汉字框为中心，可以比汉字更宽。
+    /// 给出栏边时，左右都不得越过；左边顶住则向右错开。
+    static func rubyHitXRange(
+        baseMinX: CGFloat,
+        baseWidth: CGFloat,
+        rubyWidth: CGFloat,
+        limitMinX: CGFloat? = nil,
+        limitMaxX: CGFloat? = nil
+    ) -> (minX: CGFloat, maxX: CGFloat) {
         let width = max(baseWidth, rubyWidth)
         let x = baseMinX + (baseWidth - width) / 2
-        return (x, x + width)
+        guard let rawMin = limitMinX, let rawMax = limitMaxX else {
+            return (x, x + width)
+        }
+        let minX = min(rawMin, rawMax)
+        let maxX = max(rawMin, rawMax)
+        let room = maxX - minX
+        guard room > 0 else { return (x, x + width) }
+        let drawX = rubyDrawX(
+            baseMinX: baseMinX,
+            baseWidth: baseWidth,
+            rubyWidth: rubyWidth,
+            limitMinX: minX,
+            limitMaxX: maxX
+        )
+        if rubyWidth > baseWidth {
+            return (drawX, drawX + min(rubyWidth, room))
+        }
+        let hitMin = max(baseMinX, minX)
+        let hitMax = min(baseMinX + baseWidth, maxX)
+        return (hitMin, max(hitMin, hitMax))
     }
 
     static func editingHighlightColor(dark: Bool) -> NSColor {
         if dark {
             return NSColor(srgbRed: 0.30, green: 0.30, blue: 0.34, alpha: 1)
         }
-        // Pale enough to read the kanji in light mode; darker gray was wrapping the run.
+        // 浅色模式下要浅到仍能读出汉字；更深的灰会把整段字裹住。
         return NSColor(srgbRed: 0.97, green: 0.97, blue: 0.98, alpha: 1)
     }
 
-    /// Selection may mix kana and kanji. Keep the ideograph run and expand it
-    /// to the full consecutive kanji (当然です + 然で → 当然).
+    /// 选区可能夹着假名和汉字。只留汉字，并扩到连续汉字的整段（当然です 再选 然で，得到 当然）。
     static func selectedKanjiRun(in lyrics: String, selection: NSRange) -> NSRange? {
         let ns = lyrics as NSString
         let length = ns.length
@@ -329,10 +392,9 @@ enum LyricsRubyMath {
         return size.height
     }
 
-    /// JLREQ 3.3.8 / simple-ruby: long ruby may overhang unannotated kana; it must not
-    /// overhang neighboring ideographs. Consecutive kanji already sharing one span are
-    /// group ruby. When two ruby groups would meet over intervening kana (負けず劣らず),
-    /// add buffer in that kana. Empty neighboring space does not expand the base.
+    /// 长注音可以伸进旁边没有注音的假名，但不能压到相邻汉字。
+    /// 已经连在同一段上的汉字算一组。两组注音若会在中间假名上碰上（如「負けず劣らず」），
+    /// 就在那段假名里加间距。旁边是空白时，不把汉字本身撑开。
     static func kernAdjustments(
         lyrics: String,
         annotations: [LyricsRubySpan],
@@ -439,8 +501,8 @@ enum LyricsRubyMath {
         return false
     }
 
-    /// Edge, newline, or unannotated kana/other text: unlimited — ruby may overhang
-    /// into that empty band. Ideograph or another ruby base: none, so the kanji spacing grows.
+    /// 边缘、换行或没有注音的假名：注音可以无限伸出。
+    /// 旁边是汉字或另一组注音：不伸出，改为把汉字间距撑开。
     private static func neighborAllowance(
         _ ns: NSString,
         from start: Int,
@@ -469,7 +531,7 @@ enum LyricsRubyMath {
         }
     }
 
-    /// JIS X 4051 2:1:1 — 1 unit before, 2 between base characters, 1 after.
+    /// 间距按 1:2:1 分配：汉字前 1 份、字与字之间 2 份、汉字后 1 份。
     private static func expandBase(_ range: NSRange, extra: CGFloat, length: Int, into kern: inout [Int: CGFloat]) {
         guard extra > 0, range.length > 0 else { return }
         let n = range.length

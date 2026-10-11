@@ -1,4 +1,3 @@
-// Views/Editor/SongEditorView.swift
 // 中间主编辑视图：歌曲元信息 + 段落编辑器列表
 // v1.1: 多语言支持 + 本地化
 
@@ -23,12 +22,6 @@ struct SongEditorView: View {
     /// v1.7.8 Gamma+: 拖动时鼠标接近 ScrollView 顶部自动向上滚动
     @StateObject private var autoScroller = DragAutoScroller()
 
-    /// v1.7.9 GT: 段落拖动开关（恢复 BugStable 双模式）
-    /// 关闭（默认）：List + .swipeActions 左滑删除
-    /// 开启：ScrollView + LazyVStack + .draggable 任意位置拖动
-    /// 动画前提：SectionEditorView 已用原生 TextEditor（无 PassthroughScrollTextEditor），
-    /// 故 List / ScrollView 两种容器下笔记与折叠展开动画均正常
-    @AppStorage("sectionDragEnabled") private var sectionDragEnabled: Bool = false
     /// 各段落笔记/译文侧栏。Command 点击时整首歌共用这一份状态。
     @State private var sectionPanels: [UUID: SectionSidePanel] = [:]
     @State private var imagineRequest: ImagineRequest?
@@ -372,67 +365,42 @@ struct SongEditorView: View {
         try? context.save()
     }
 
-    // MARK: 段落列表（v1.7.9 Beta：List + 条件性 .onMove / .swipeActions）
-    // 段落拖动开关关闭时（默认）：用 List + .swipeActions 左滑删除，无拖动
-    // 段落拖动开关开启时：用 List + .onMove 拖动（系统级 NSDraggingSource 与 NSTextView 不冲突）
-    // 删除段落：右键菜单（SectionEditorView 的 contextMenu 已有）+ 左滑删除
-
-    /// v1.7.8 Gamma+: 段落 frame 缓存（备用，目前不再使用，因为 List.onMove 系统级拖动不需手动判定段前/段后）
-    @State private var sectionFrames: [UUID: CGRect] = [:]
+    // 段落列表用滚动视图而不是列表：列表的表格视图会挡住折叠和笔记动画。
 
     private var sectionsScroll: some View {
-        // v1.7.9 GT3: 统一用 ScrollView+LazyVStack（不用 List）
-        // List 的 NSTableView 阻断 transition + view-level .animation，导致笔记/折叠动画失效
-        // ScrollView+LazyVStack 下 transition + .animation 正常工作，两种模式动画都正常
-        // 区别在 ForEach 内 wrapper：OFF→SwipeDeleteSectionWrapper / ON→DraggableSectionWrapper
         ScrollViewReader { proxy in
             scrollableSectionsView(proxy: proxy)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: song.sections.map(\.id))
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: sectionDragEnabled)
     }
 
-    /// v1.7.9 GT3: 统一容器 ScrollView + LazyVStack，wrapper 按开关切换
+    /// 左键拖动重排，右键拖动滑出 Imagine 和删除。两件事同时在，不再看设置开关。
     @ViewBuilder
     private func scrollableSectionsView(proxy: ScrollViewProxy) -> some View {
         ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(song.orderedSections) { section in
-                    if sectionDragEnabled {
-                        DraggableSectionWrapper(
-                            section: section,
-                            languages: song.languages,
-                            song: song,
-                            sidePanel: panelBinding(for: section.id),
-                            onHeaderControl: { applyHeaderControl($0, sectionID: section.id) },
-                            activeSectionID: $activeSectionID,
-                            focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
-                            onDrop: { target, ids, location, height in
-                                handleSectionDrop(
-                                    draggedIDs: ids,
-                                    target: target,
-                                    location: location,
-                                    targetHeight: height
-                                )
-                            }
-                        )
-                        .id("\(section.id.uuidString)-drag")
-                        .transition(.opacity)
-                    } else {
-                        SwipeDeleteSectionWrapper(
-                            section: section,
-                            languages: song.languages,
-                            song: song,
-                            sidePanel: panelBinding(for: section.id),
-                            onHeaderControl: { applyHeaderControl($0, sectionID: section.id) },
-                            activeSectionID: $activeSectionID,
-                            focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
-                            onDelete: { deleteSectionsByID(section.id) },
-                            onImagine: { imagineRequest = ImagineRequest(sectionID: section.id) }
-                        )
-                        .id("\(section.id.uuidString)-swipe")
-                        .transition(.opacity)
-                    }
+                    SwipeDeleteSectionWrapper(
+                        section: section,
+                        languages: song.languages,
+                        song: song,
+                        sidePanel: panelBinding(for: section.id),
+                        onHeaderControl: { applyHeaderControl($0, sectionID: section.id) },
+                        activeSectionID: $activeSectionID,
+                        focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
+                        onDelete: { deleteSectionsByID(section.id) },
+                        onImagine: { imagineRequest = ImagineRequest(sectionID: section.id) },
+                        onDrop: { target, ids, location, height in
+                            handleSectionDrop(
+                                draggedIDs: ids,
+                                target: target,
+                                location: location,
+                                targetHeight: height
+                            )
+                        }
+                    )
+                    .id(section.id)
+                    .transition(.opacity)
                 }
                 addSectionBar
                     .padding(.top, 12)
@@ -451,22 +419,12 @@ struct SongEditorView: View {
             autoScroller.proxy = proxy
             autoScroller.orderedSections = song.orderedSections
             autoScroller.currentTopSectionID = activeSectionID ?? song.orderedSections.last?.id
-            if sectionDragEnabled {
-                autoScroller.start()
-            }
+            autoScroller.start()
+            installSectionDropHandler()
         }
         .onDisappear {
             autoScroller.stop()
-        }
-        .onChange(of: sectionDragEnabled) { _, enabled in
-            autoScroller.proxy = proxy
-            autoScroller.orderedSections = song.orderedSections
-            if enabled {
-                autoScroller.currentTopSectionID = activeSectionID ?? song.orderedSections.last?.id
-                autoScroller.start()
-            } else {
-                autoScroller.stop()
-            }
+            ReorderDragCenter.shared.onSectionDrop = nil
         }
         .onChange(of: song.sections.map(\.id)) { _, _ in
             autoScroller.orderedSections = song.orderedSections
@@ -475,7 +433,7 @@ struct SongEditorView: View {
             if let id = newID {
                 autoScroller.currentTopSectionID = id
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                    proxy.scrollTo("\(id.uuidString)-\(sectionDragEnabled ? "drag" : "swipe")", anchor: .center)
+                    proxy.scrollTo(id, anchor: .center)
                 }
             }
         }
@@ -514,6 +472,19 @@ struct SongEditorView: View {
         }
     }
 
+    /// 歌词栏拖动松手时走同一份插入。SwiftUI 若已经放下，这里不会再写一遍。
+    private func installSectionDropHandler() {
+        ReorderDragCenter.shared.onSectionDrop = { draggedID, targetID, dropY, height in
+            guard let target = song.orderedSections.first(where: { $0.id == targetID }) else { return }
+            handleSectionDrop(
+                draggedIDs: [draggedID],
+                target: target,
+                location: CGPoint(x: 0, y: dropY),
+                targetHeight: height
+            )
+        }
+    }
+
     /// 拖到目标段上半 → 插到该段之前；下半 → 插到该段之后。空拖 / 拖到自身为 no-op。
     private func handleSectionDrop(
         draggedIDs: [UUID],
@@ -521,6 +492,7 @@ struct SongEditorView: View {
         location: CGPoint,
         targetHeight: CGFloat
     ) {
+        guard ReorderDragCenter.shared.claimDrop(draggedIDs: draggedIDs) else { return }
         let ordered = song.orderedSections
         guard let newIDs = SectionDragMath.reorderedIDs(
             orderedIDs: ordered.map(\.id),
@@ -678,7 +650,7 @@ fileprivate final class DragAutoScroller: ObservableObject {
     func start() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
-            // Must stay on this stack: NSDragging runs NSEventTrackingRunLoopMode.
+            // 必须留在这一层调用：拖放走的是事件跟踪运行循环。
             self?.handleEvent(event)
             return event
         }
@@ -742,7 +714,7 @@ fileprivate final class DragAutoScroller: ObservableObject {
         }
         let prevID = orderedSections[prevIdx].id
         withAnimation(.linear(duration: 0.08)) {
-            proxy.scrollTo("\(prevID.uuidString)-drag", anchor: .top)
+            proxy.scrollTo(prevID, anchor: .top)
         }
         currentTopSectionID = prevID
     }
@@ -769,7 +741,7 @@ fileprivate final class DragAutoScroller: ObservableObject {
     }
 }
 
-/// Reports the SwiftUI view's frame in Cocoa window coordinates (origin bottom-left).
+/// 报告视图在窗口坐标里的框架，原点在左下。
 fileprivate struct ScrollFrameReporter: NSViewRepresentable {
     var onFrameChange: (CGRect, NSView) -> Void
 
@@ -810,12 +782,203 @@ fileprivate final class ScrollFrameView: NSView {
     }
 }
 
-/// Dedicated drag payload so lyrics NSTextView does not see a plain-text UUID.
+/// 段落拖动和曲目库拖动共用这一份：谁在拖，横条就归谁。
+final class ReorderDragCenter: ObservableObject {
+    static let shared = ReorderDragCenter()
+
+    struct SectionClaim: Equatable {
+        var rowID: UUID
+        var insertsBefore: Bool
+    }
+
+    @Published private(set) var subject: SectionDragMath.ReorderDragSubject = .none
+    @Published private(set) var sectionClaim: SectionClaim?
+    private var dropApplied = false
+    /// 松手后短时间内仍是这一段，避免 SwiftUI 和这里各写一遍。
+    private var finishedSectionID: UUID?
+    /// 歌词栏拖动松手、且 SwiftUI 没有先放下时，用这一份写回顺序。
+    var onSectionDrop: ((UUID, UUID, CGFloat, CGFloat) -> Void)?
+
+    private final class SectionRow {
+        weak var view: NSView?
+        init(view: NSView) { self.view = view }
+    }
+
+    private var sectionRows: [UUID: SectionRow] = [:]
+    private var draggingSectionID: UUID?
+
+    func setSubject(_ next: SectionDragMath.ReorderDragSubject) {
+        if next != .section, sectionClaim != nil {
+            sectionClaim = nil
+        }
+        if subject != next {
+            subject = next
+        }
+    }
+
+    /// 同一次歌词栏拖动只写下第一份结果。不是这次拖的段落则照常写下。
+    func claimDrop(draggedIDs: [UUID]) -> Bool {
+        let tracked = draggingSectionID ?? finishedSectionID
+        guard let tracked, draggedIDs.contains(tracked) else { return true }
+        if dropApplied { return false }
+        dropApplied = true
+        return true
+    }
+
+    func registerSectionRow(id: UUID, view: NSView) {
+        if let row = sectionRows[id] {
+            row.view = view
+        } else {
+            sectionRows[id] = SectionRow(view: view)
+        }
+    }
+
+    func unregisterSectionRow(id: UUID) {
+        sectionRows.removeValue(forKey: id)
+        if sectionClaim?.rowID == id {
+            sectionClaim = nil
+        }
+    }
+
+    func beginSectionDrag(id: UUID) {
+        dropApplied = false
+        finishedSectionID = nil
+        draggingSectionID = id
+        setSubject(.section)
+    }
+
+    func isDraggingSection(_ id: UUID) -> Bool {
+        draggingSectionID == id
+    }
+
+    func updateSectionClaim(screenPoint: NSPoint) {
+        guard draggingSectionID != nil else { return }
+        guard SectionDragMath.reorderLineSides(for: .section).sectionList else {
+            if sectionClaim != nil { sectionClaim = nil }
+            return
+        }
+        guard let hit = sectionHit(at: screenPoint) else {
+            if sectionClaim != nil { sectionClaim = nil }
+            return
+        }
+        let before = SectionDragMath.insertsBefore(dropY: hit.localY, targetMidY: hit.height / 2)
+        let next = SectionClaim(rowID: hit.id, insertsBefore: before)
+        if sectionClaim != next {
+            sectionClaim = next
+        }
+    }
+
+    func finishSectionDrag(screenPoint: NSPoint) {
+        let dragged = draggingSectionID
+        let applied = dropApplied
+        let hit = sectionHit(at: screenPoint)
+        draggingSectionID = nil
+        finishedSectionID = dragged
+        if sectionClaim != nil { sectionClaim = nil }
+        if subject == .section {
+            setSubject(.none)
+        }
+        if !applied, let dragged, let hit {
+            onSectionDrop?(dragged, hit.id, hit.localY, hit.height)
+        }
+        let token = dragged
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.finishedSectionID == token, self.draggingSectionID == nil else { return }
+            self.finishedSectionID = nil
+            self.dropApplied = false
+        }
+    }
+
+    private struct SectionHit {
+        var id: UUID
+        var localY: CGFloat
+        var height: CGFloat
+    }
+
+    /// 只认横坐标落在段落列表里的行。缝隙归更近的那一段，仍用这一段的上下半。
+    private func sectionHit(at screenPoint: NSPoint) -> SectionHit? {
+        let slack: CGFloat = 12
+        var best: (hit: SectionHit, distance: CGFloat, top: CGFloat)?
+        for (id, row) in sectionRows {
+            guard let view = row.view, let window = view.window else { continue }
+            let rect = window.convertToScreen(view.convert(view.bounds, to: nil))
+            guard rect.width > 1, rect.height > 1 else { continue }
+            guard screenPoint.x >= rect.minX, screenPoint.x <= rect.maxX else { continue }
+            let localY = rect.maxY - screenPoint.y
+            let distance: CGFloat
+            if localY < 0 {
+                distance = -localY
+            } else if localY > rect.height {
+                distance = localY - rect.height
+            } else {
+                distance = 0
+            }
+            guard distance <= slack else { continue }
+            if let current = best {
+                let closer = distance < current.distance - 0.5
+                let tieUpper = abs(distance - current.distance) <= 0.5 && rect.maxY > current.top
+                if !closer && !tieUpper { continue }
+            }
+            best = (
+                SectionHit(id: id, localY: localY, height: rect.height),
+                distance,
+                rect.maxY
+            )
+        }
+        return best?.hit
+    }
+}
+
+/// 段落拖放只走专用类型，不附带纯文本编号。纯文本编号会被歌词栏当成正文。
 struct SectionIDPayload: Codable, Transferable, Hashable {
     let id: UUID
 
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: UTType(exportedAs: SectionDragMath.sectionIDTypeIdentifier))
+    }
+}
+
+/// 歌词栏发起的拖动只写段落类型。不附带纯文本编号，避免被当成歌词。
+final class SectionIDPasteboardWriter: NSObject, NSPasteboardWriting {
+    let id: UUID
+
+    init(id: UUID) {
+        self.id = id
+    }
+
+    func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
+        [NSPasteboard.PasteboardType(SectionDragMath.sectionIDTypeIdentifier)]
+    }
+
+    func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
+        guard type.rawValue == SectionDragMath.sectionIDTypeIdentifier else { return nil }
+        return try? JSONEncoder().encode(SectionIDPayload(id: id))
+    }
+}
+
+/// 跟光标走的歌词栏缩影。只显示这段歌词正文，不是曲目行那种图标加标题。
+private struct SectionLyricsDragPreview: View {
+    let lyrics: String
+
+    var body: some View {
+        Text(lyrics)
+            .font(.system(size: 12))
+            .foregroundStyle(.primary)
+            .lineLimit(8)
+            .multilineTextAlignment(.leading)
+            .frame(width: 220, alignment: .topLeading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: 72, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(NSColor.textBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
     }
 }
 
@@ -836,6 +999,22 @@ struct DraggableSectionWrapper: View {
     @State private var isDropTargeted: Bool = false
     @State private var sectionHeight: CGFloat = 1
     @State private var insertBefore: Bool = true
+    @ObservedObject private var reorderDrag = ReorderDragCenter.shared
+
+    private var sectionLineBefore: Bool {
+        if reorderDrag.sectionClaim?.rowID == section.id {
+            return reorderDrag.sectionClaim?.insertsBefore ?? true
+        }
+        return insertBefore
+    }
+
+    /// 只有当前拖的是段落、并且落点就在这一段上时才画。拖歌曲时不画。
+    private var showsSectionLine: Bool {
+        let sessionHit = reorderDrag.sectionClaim?.rowID == section.id
+        guard sessionHit || isDropTargeted else { return false }
+        let subject: SectionDragMath.ReorderDragSubject = reorderDrag.subject == .song ? .song : .section
+        return SectionDragMath.reorderLineSides(for: subject).sectionList
+    }
 
     var body: some View {
         SectionEditorView(
@@ -856,15 +1035,12 @@ struct DraggableSectionWrapper: View {
                     }
             }
         )
+        .background {
+            SectionReorderRowTracker(rowID: section.id)
+                .allowsHitTesting(false)
+        }
         .draggable(SectionIDPayload(id: section.id)) {
-            HStack(spacing: 6) {
-                Image(systemName: "music.note.list")
-                    .foregroundStyle(.tint)
-                Text(section.marker)
-                    .lineLimit(1)
-            }
-            .padding(8)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+            SectionLyricsDragPreview(lyrics: section.body)
         }
         .dropDestination(for: SectionIDPayload.self) { items, location in
             let ids = items.map(\.id).filter { $0 != section.id }
@@ -877,14 +1053,48 @@ struct DraggableSectionWrapper: View {
                 isDropTargeted = targeted
             }
         }
-        .overlay(alignment: insertBefore ? .top : .bottom) {
-            if isDropTargeted {
+        .overlay(alignment: sectionLineBefore ? .top : .bottom) {
+            if showsSectionLine {
                 Rectangle()
                     .fill(Color.accentColor)
                     .frame(height: 2.5)
                     .padding(.horizontal, 4)
+                    .allowsHitTesting(false)
                     .transition(.opacity)
             }
+        }
+    }
+}
+
+/// 拖动时登记这一段在屏幕上的位置。落点横条和松手都用它，不靠猜。
+private struct SectionReorderRowTracker: NSViewRepresentable {
+    var rowID: UUID
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.sync(view, rowID: rowID)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.sync(nsView, rowID: rowID)
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.lineCenter?.unregisterSectionRow(id: coordinator.rowID)
+    }
+
+    final class Coordinator {
+        var rowID = UUID()
+        var lineCenter: ReorderDragCenter?
+
+        func sync(_ view: NSView, rowID: UUID) {
+            self.rowID = rowID
+            let center = ReorderDragCenter.shared
+            lineCenter = center
+            center.registerSectionRow(id: rowID, view: view)
         }
     }
 }
@@ -1317,7 +1527,7 @@ final class ImagineCancelMonitor: ObservableObject {
         stop()
         token = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            // 53 is Escape.
+            // 键码 53 是 Esc。
             if flags.contains(.command), event.keyCode == 53 {
                 onCancel()
                 return nil
@@ -1334,9 +1544,8 @@ final class ImagineCancelMonitor: ObservableObject {
     }
 }
 
-/// v1.7.9 GT3: 拖动开关关闭时用——自定义左滑删除（ScrollView+LazyVStack 下实现）
-/// 药丸形状删除按钮 + 跟随左滑变形动效 + 点击其他段落自动恢复
-/// 手势挂在整个段落，minimumDistance: 40 严格过滤，水平方向判断避免与文本选择冲突
+/// 右键按住再拖，把段落滑开，露出左边的 Imagine 和右边的删除。
+/// 左键拖动不走这里，交给里面的重排。只点右键、不拖，仍是段落菜单。
 struct SwipeDeleteSectionWrapper: View {
     let section: SongSection
     let languages: [String]
@@ -1347,10 +1556,10 @@ struct SwipeDeleteSectionWrapper: View {
     @Binding var focusBodyOnNextSectionChange: Bool
     let onDelete: () -> Void
     let onImagine: () -> Void
+    let onDrop: (SongSection, [UUID], CGPoint, CGFloat) -> Void
 
     @State private var offsetX: CGFloat = 0
     @State private var startOffsetX: CGFloat = 0
-    @State private var dragStartedHorizontal: Bool = false
 
     private let actionWidth: CGFloat = 80
 
@@ -1384,60 +1593,52 @@ struct SwipeDeleteSectionWrapper: View {
                 .padding(.trailing, 5)
             }
 
-            // 上层：段落内容（左滑偏移露出底层药丸按钮）
-            SectionEditorView(
+            // 上层：段落内容。左键拖动重排；右键拖动才把这一层推开。
+            DraggableSectionWrapper(
                 section: section,
                 languages: languages,
+                song: song,
+                sidePanel: $sidePanel,
+                onHeaderControl: onHeaderControl,
                 activeSectionID: $activeSectionID,
                 focusBodyOnNextSectionChange: $focusBodyOnNextSectionChange,
-                sidePanel: $sidePanel,
-                onHeaderControl: onHeaderControl
+                onDrop: onDrop
             )
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(NSColor.textBackgroundColor))
             .offset(x: offsetX)
-            // 删除按钮展开时禁用内容交互
+            // 按钮展开时禁用内容交互，才能点到 Imagine 和删除
             .allowsHitTesting(offsetX == 0)
         }
         .clipped()
         .contentShape(Rectangle())
-        // v1.7.9 GT3: 左滑手势用 .gesture + minimumDistance: 40
-        // .gesture 优先级高于 simultaneousGesture，能抢占文本选择的拖动
-        // 40px 水平移动比 NSTextView 的文本选择启动更早触发
-        .gesture(
-            DragGesture(minimumDistance: 40)
-                .onChanged { value in
-                    if !dragStartedHorizontal {
-                        let isHorizontal = abs(value.translation.width) > abs(value.translation.height) * 2
-                        guard isHorizontal else { return }
-                        dragStartedHorizontal = true
-                        // 让 TextEditor 失焦，避免文本选择干扰
-                        NSApp.keyWindow?.makeFirstResponder(nil)
-                    }
-                    guard dragStartedHorizontal else { return }
-                    let newOffset = startOffsetX + value.translation.width
+        .background {
+            SectionRightDragCatcher(
+                onTranslation: { dx in
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                    let newOffset = startOffsetX + dx
                     withAnimation(.interactiveSpring()) {
                         offsetX = min(max(newOffset, -actionWidth), actionWidth)
                     }
-                }
-                .onEnded { _ in
-                    if dragStartedHorizontal {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                            if offsetX > actionWidth / 2 {
-                                offsetX = actionWidth
-                                startOffsetX = actionWidth
-                            } else if offsetX < -actionWidth / 2 {
-                                offsetX = -actionWidth
-                                startOffsetX = -actionWidth
-                            } else {
-                                offsetX = 0
-                                startOffsetX = 0
-                            }
+                },
+                onFinish: { intent in
+                    guard intent == .revealImagine || intent == .revealDelete else { return }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        if offsetX > actionWidth / 2 {
+                            offsetX = actionWidth
+                            startOffsetX = actionWidth
+                        } else if offsetX < -actionWidth / 2 {
+                            offsetX = -actionWidth
+                            startOffsetX = -actionWidth
+                        } else {
+                            offsetX = 0
+                            startOffsetX = 0
                         }
                     }
-                    dragStartedHorizontal = false
                 }
-        )
+            )
+            .allowsHitTesting(false)
+        }
         // 点击内容区：若按钮已展开则先关闭
         .onTapGesture {
             if offsetX != 0 {
@@ -1457,6 +1658,237 @@ struct SwipeDeleteSectionWrapper: View {
             offsetX = 0
             startOffsetX = 0
         }
+    }
+}
+
+/// 右键拖动，或触控板双指拖动（按下或不按下）时滑开段落。不挡左键，竖直滑动仍滚动页面。
+private struct SectionRightDragCatcher: NSViewRepresentable {
+    var onTranslation: (CGFloat) -> Void
+    var onFinish: (SectionDragMath.SectionGestureIntent) -> Void
+
+    func makeNSView(context: Context) -> SectionRightDragCatcherView {
+        let view = SectionRightDragCatcherView()
+        view.onTranslation = onTranslation
+        view.onFinish = onFinish
+        return view
+    }
+
+    func updateNSView(_ nsView: SectionRightDragCatcherView, context: Context) {
+        nsView.onTranslation = onTranslation
+        nsView.onFinish = onFinish
+    }
+
+    static func dismantleNSView(_ nsView: SectionRightDragCatcherView, coordinator: ()) {
+        nsView.teardown()
+    }
+}
+
+private final class SectionRightDragCatcherView: NSView {
+    var onTranslation: ((CGFloat) -> Void)?
+    var onFinish: ((SectionDragMath.SectionGestureIntent) -> Void)?
+    /// 重放右键给段落菜单时，其他段落不要再把这次点击吃掉。
+    private static var passingReplay = false
+
+    private var monitor: Any?
+    private var tracking = false
+    private var revealed = false
+    private var origin = NSPoint.zero
+    private var downEvent: NSEvent?
+    /// 不按下的双指滑动。只有认领的那一段吃掉水平滑动。
+    private var scrollTracking = false
+    private var scrollHeld = false
+    private var scrollX: CGFloat = 0
+    private var scrollY: CGFloat = 0
+    private static var scrollOwner: ObjectIdentifier?
+    /// 水平滑动松手后，系统还会送惯性滚动。认领过的那段要继续吃掉，避免页面跟着跳。
+    private static var momentumSwallow: ObjectIdentifier?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        install()
+    }
+
+    override func removeFromSuperview() {
+        teardown()
+        super.removeFromSuperview()
+    }
+
+    func teardown() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        tracking = false
+        if Self.scrollOwner == ObjectIdentifier(self) {
+            Self.scrollOwner = nil
+        }
+        if Self.momentumSwallow == ObjectIdentifier(self) {
+            Self.momentumSwallow = nil
+        }
+        scrollTracking = false
+        scrollHeld = false
+    }
+
+    private func install() {
+        teardown()
+        guard window != nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.rightMouseDown, .rightMouseDragged, .rightMouseUp, .scrollWheel]
+        ) { [weak self] event in
+            guard let self else { return event }
+            return self.handle(event)
+        }
+    }
+
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        if Self.passingReplay { return event }
+        guard let window, event.window === window, !isHiddenOrHasHiddenAncestor else { return event }
+        if event.type == .scrollWheel {
+            return handleScroll(event)
+        }
+        let button = SectionDragMath.sectionPointerButton(rightButton: true)
+        switch event.type {
+        case .rightMouseDown:
+            let local = convert(event.locationInWindow, from: nil)
+            guard bounds.width > 1, bounds.height > 1, bounds.contains(local) else { return event }
+            tracking = true
+            revealed = false
+            origin = event.locationInWindow
+            downEvent = event
+            return nil
+        case .rightMouseDragged:
+            guard tracking else { return event }
+            let dx = event.locationInWindow.x - origin.x
+            let dy = event.locationInWindow.y - origin.y
+            let intent = SectionDragMath.sectionGestureIntent(
+                button: button,
+                translationX: dx,
+                translationY: dy,
+                ended: false,
+                alreadyRevealing: revealed
+            )
+            if intent == .revealImagine || intent == .revealDelete {
+                revealed = true
+                onTranslation?(dx)
+            }
+            return nil
+        case .rightMouseUp:
+            guard tracking else { return event }
+            tracking = false
+            let dx = event.locationInWindow.x - origin.x
+            let dy = event.locationInWindow.y - origin.y
+            let intent = SectionDragMath.sectionGestureIntent(
+                button: button,
+                translationX: dx,
+                translationY: dy,
+                ended: true,
+                alreadyRevealing: revealed
+            )
+            let down = downEvent
+            downEvent = nil
+            revealed = false
+            if intent == .contextMenu, let down {
+                replayContextClick(down)
+            } else {
+                onFinish?(intent)
+            }
+            return nil
+        default:
+            return event
+        }
+    }
+
+    /// 不按下的双指滑动。水平的滑出按钮；竖直的留给页面滚动。
+    private func handleScroll(_ event: NSEvent) -> NSEvent? {
+        if tracking { return event }
+        let id = ObjectIdentifier(self)
+        let momentum = event.phase == [] && event.momentumPhase != []
+        if momentum {
+            guard Self.momentumSwallow == id else { return event }
+            if event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled) {
+                Self.momentumSwallow = nil
+            }
+            return nil
+        }
+        guard event.hasPreciseScrollingDeltas, event.phase != [] else { return event }
+        let ending = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+        if event.phase.contains(.began) {
+            Self.momentumSwallow = nil
+            let local = convert(event.locationInWindow, from: nil)
+            let inside = bounds.width > 1 && bounds.height > 1 && bounds.contains(local)
+            if inside {
+                if let owner = Self.scrollOwner, owner != id { return event }
+                Self.scrollOwner = id
+                scrollTracking = true
+                scrollHeld = false
+                revealed = false
+                scrollX = 0
+                scrollY = 0
+            }
+            if !ending {
+                return event
+            }
+            guard scrollTracking, Self.scrollOwner == id else { return event }
+        }
+        if ending {
+            guard scrollTracking, Self.scrollOwner == id else { return event }
+            let held = scrollHeld
+            let result = applyScroll(event, ended: true)
+            scrollTracking = false
+            scrollHeld = false
+            revealed = false
+            Self.scrollOwner = nil
+            if result == nil || held {
+                Self.momentumSwallow = id
+                return nil
+            }
+            return event
+        }
+        guard scrollTracking, Self.scrollOwner == id else { return event }
+        return applyScroll(event, ended: false)
+    }
+
+    private func applyScroll(_ event: NSEvent, ended: Bool) -> NSEvent? {
+        let delta = SectionDragMath.trackpadFingerDelta(
+            scrollingDeltaX: event.scrollingDeltaX,
+            scrollingDeltaY: event.scrollingDeltaY,
+            naturalScrolling: event.isDirectionInvertedFromDevice
+        )
+        scrollX += delta.x
+        scrollY += delta.y
+        let claim = SectionDragMath.trackpadSectionScroll(
+            fingerX: scrollX,
+            fingerY: scrollY,
+            ended: ended,
+            alreadyRevealing: revealed
+        )
+        switch claim {
+        case .pass:
+            return event
+        case .hold:
+            scrollHeld = true
+            return nil
+        case .reveal(let intent):
+            scrollHeld = true
+            revealed = true
+            onTranslation?(scrollX)
+            if ended {
+                onFinish?(intent)
+            }
+            return nil
+        }
+    }
+
+    /// 没拖成滑动时，把按下再交给系统，段落菜单照旧弹出。
+    private func replayContextClick(_ down: NSEvent) {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        Self.passingReplay = true
+        down.window?.sendEvent(down)
+        Self.passingReplay = false
+        install()
     }
 }
 

@@ -1,4 +1,3 @@
-// Views/Pronunciation/PronunciationEditorView.swift
 // 读音编辑器
 // v1.4: 改回带文字按钮版本（修穿模错位）+ 注音 chip 列表限制高度防错位
 
@@ -42,6 +41,7 @@ struct PronunciationEditorView: View {
 
     /// v1.7.9 GT3: PassthroughScrollTextEditor 的 isFocused @Binding 用
     @State private var bodyIsFocused: Bool = false
+    /// 左键按住拖动始终可以重排这一段，不再看设置开关。
 
     /// v1.7.9 Test: 歌词 TextEditor 实际高度回传给父 view，让笔记栏底部对齐
     @Binding var lyricsEditorHeight: CGFloat
@@ -176,7 +176,9 @@ struct PronunciationEditorView: View {
             onTextEdits: { edits, textBefore in
                 remapAnnotations(edits: edits, textBefore: textBefore)
             },
-            requestedSelection: $pendingBodySelection
+            requestedSelection: $pendingBodySelection,
+            yieldsSectionReorder: true,
+            sectionReorderID: section.id
         )
         .popover(item: $editingAnnotation, arrowEdge: .top) { anno in
             editAnnotationSheet(anno)
@@ -519,7 +521,7 @@ final class PassthroughScrollView: NSScrollView {
     }
 }
 
-/// Draws CoreText ruby above base runs. AppKit NSTextView does not paint kCTRubyAnnotationAttributeName.
+/// 在正文上方绘制注音。系统文本框自己不会画这段注音属性。
 final class LyricsRubyLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     var fontSize: CGFloat = 16
 
@@ -558,6 +560,21 @@ final class LyricsRubyLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         return true
     }
 
+    /// 注音不得画出本行和文字视图的左右边。坐标与 drawGlyphs 的 origin 一致。
+    fileprivate func rubyColumnLimits(lineRect: NSRect, originX: CGFloat) -> (minX: CGFloat, maxX: CGFloat) {
+        let lineMin = originX + lineRect.minX
+        let lineMax = originX + lineRect.maxX
+        guard let view = firstTextView, view.bounds.width > 1 else {
+            return (lineMin, lineMax)
+        }
+        return LyricsRubyMath.rubyColumnLimit(
+            lineMinX: lineMin,
+            lineMaxX: lineMax,
+            viewMinX: view.bounds.minX,
+            viewMaxX: view.bounds.maxX
+        )
+    }
+
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
         guard let storage = textStorage, let container = textContainers.first else { return }
@@ -577,9 +594,29 @@ final class LyricsRubyLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                 .foregroundColor: NSColor.secondaryLabelColor,
             ]
             let rubySize = (kana as NSString).size(withAttributes: attrs)
-            let x = box.minX + (box.width - rubySize.width) / 2
+            let limits = rubyColumnLimits(lineRect: lineRect, originX: origin.x)
+            let x = LyricsRubyMath.rubyDrawX(
+                baseMinX: box.minX,
+                baseWidth: box.width,
+                rubyWidth: rubySize.width,
+                limitMinX: limits.minX,
+                limitMaxX: limits.maxX
+            )
             let y = origin.y + lineRect.minY + 1
-            (kana as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: attrs)
+            let room = limits.maxX - limits.minX
+            if room > 0 {
+                NSGraphicsContext.saveGraphicsState()
+                NSBezierPath(rect: NSRect(
+                    x: limits.minX,
+                    y: origin.y + lineRect.minY,
+                    width: room,
+                    height: max(lineRect.height, rubySize.height + 2)
+                )).addClip()
+                (kana as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: attrs)
+                NSGraphicsContext.restoreGraphicsState()
+            } else {
+                (kana as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: attrs)
+            }
         }
     }
 }
@@ -596,6 +633,9 @@ final class PassthroughTextView: NSTextView {
     /// 歌词编辑结束后统一回报（范围 + 替换文本），用于同步注音范围。
     /// 只在编辑事务之外被调用，见 shouldChangeText / flushPendingEdits。
     var onTextEdits: (([(range: NSRange, replacement: String)], String) -> Void)?
+    /// 开关开启时，按下后移动就重排这一段，而不是在歌词里拖选。只点一下仍放光标。
+    var yieldsSectionReorder = false
+    var sectionReorderID: UUID?
     private var menuSpan: LyricsRubySpan?
     private var pointerTracking: NSTrackingArea?
     private var isSyncingCaret = false
@@ -789,22 +829,17 @@ final class PassthroughTextView: NSTextView {
     }
 
     override var shouldDrawInsertionPoint: Bool {
-        // Must keep AppKit's first-responder / key-window checks. Returning true
-        // after resignFirstResponder keeps NSTextInsertionIndicator alive and it
-        // calls back into resignFirstResponder until the stack guard traps
-        // (EXC_BAD_ACCESS code=2).
+        // 必须保留系统对第一响应者和关键窗口的判断。放弃焦点后若仍返回真，
+        // 插入点指示器会活着回调放弃焦点，直到栈保护触发崩溃。
         let result = editingRubyRange == nil && super.shouldDrawInsertionPoint
         return result
     }
 
     override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
-        // One visual: the system NSTextInsertionIndicator on the kanji band.
-        // Do not fill a custom bar (it composites in the transparent text layer
-        // and sits on a second system bar). Do not call super when the indicator
-        // already exists (super is the classic hairline that ghosts on font change).
-        // Do not hide the indicator (displayMode / isHidden recurse into
-        // resignFirstResponder). If AppKit has not created an indicator yet,
-        // super at the kanji box is how the system caret appears.
+        // 只留系统插入点，画在汉字带上。
+        // 不要自绘一条（会叠在透明文字层上，变成第二条）。指示器已经存在时不要再调父类，
+        // 父类那条细线会在改字号时残留。不要隐藏指示器，隐藏会递归进放弃焦点。
+        // 系统还没建指示器时，在汉字框上调父类，系统光标才会出现。
         let placed = kanjiCaretRect(from: rect)
         if insertionIndicatorViews().isEmpty {
             super.drawInsertionPoint(in: placed, color: LyricsRubyMath.caretColor, turnedOn: flag)
@@ -814,8 +849,7 @@ final class PassthroughTextView: NSTextView {
 
     override func updateInsertionPointStateAndRestartTimer(_ restartFlag: Bool) {
         if isSyncingCaret {
-            // Do not call super on re-entry: it would put the indicator back on
-            // the full (ruby + kanji) fragment and recurse.
+            // 重入时不要调父类：指示器会回到整段行高（注音加汉字）上，并且递归。
             return
         }
         isSyncingCaret = true
@@ -824,10 +858,9 @@ final class PassthroughTextView: NSTextView {
         isSyncingCaret = false
     }
 
-    /// Place the system caret on the kanji band. Same color and thickness as the
-    /// song-search TextField. Do not add a second NSTextInsertionIndicator, and
-    /// do not toggle displayMode or isHidden — those re-enter resignFirstResponder
-    /// and blow the stack.
+    /// 把系统光标放到汉字带上，颜色和粗细与搜索框一致。
+    /// 不要再加第二个插入点指示器，也不要切换显示模式或隐藏，
+    /// 那些会重新进入放弃焦点并把栈打爆。
     private func shrinkSystemCaretToKanji(using rect: NSRect? = nil, animated: Bool = true) {
         insertionPointColor = LyricsRubyMath.caretColor
         guard shouldDrawInsertionPoint else { return }
@@ -951,7 +984,7 @@ final class PassthroughTextView: NSTextView {
         LyricsRubyMath.pointerKind(overTappableRuby: tappableRubySpan(at: point) != nil)
     }
 
-    /// 一条注音的可点按区域（视图坐标）。注音比汉字宽时，按绘制的宽度向左右扩出。
+    /// 一条注音的可点按区域（视图坐标）。与绘制同一处起点，不越出栏的左右边。
     private func rubyHitRect(for span: LyricsRubySpan) -> NSRect? {
         guard let layout = layoutManager as? LyricsRubyLayoutManager,
               let container = textContainer,
@@ -963,11 +996,21 @@ final class PassthroughTextView: NSTextView {
         let rubyFont = NSFont.systemFont(ofSize: max(layout.fontSize * LyricsRubyMath.rubySizeFactor, 8))
         let rubyWidth = (span.phonetic as NSString).size(withAttributes: [.font: rubyFont]).width
         let origin = textContainerOrigin
+        let viewMin = bounds.width > 1 ? bounds.minX - origin.x : lineRect.minX
+        let viewMax = bounds.width > 1 ? bounds.maxX - origin.x : lineRect.maxX
+        let limits = LyricsRubyMath.rubyColumnLimit(
+            lineMinX: lineRect.minX,
+            lineMaxX: lineRect.maxX,
+            viewMinX: viewMin,
+            viewMaxX: viewMax
+        )
         return LyricsRubyMath.rubyHitRect(
             baseBox: box,
             rubyWidth: rubyWidth,
             lineMinY: lineRect.minY,
-            extraRubyHeight: LyricsRubyMath.extraLineHeight(fontSize: layout.fontSize)
+            extraRubyHeight: LyricsRubyMath.extraLineHeight(fontSize: layout.fontSize),
+            limitMinX: limits.minX,
+            limitMaxX: limits.maxX
         ).offsetBy(dx: origin.x, dy: origin.y)
     }
 
@@ -984,7 +1027,128 @@ final class PassthroughTextView: NSTextView {
             onRubyEdit?(span)
             return
         }
-        super.mouseDown(with: event)
+        // 修饰键或连点仍交给文字系统选字。右键不进这里。
+        let plainClick = event.clickCount == 1
+            && event.modifierFlags.intersection([.shift, .command, .control, .option]).isEmpty
+        guard yieldsSectionReorder, let sectionID = sectionReorderID, plainClick, let window else {
+            super.mouseDown(with: event)
+            return
+        }
+        let origin = event.locationInWindow
+        let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .leftMouseUp]
+        let button = SectionDragMath.sectionPointerButton(rightButton: false)
+        while let next = window.nextEvent(matching: mask, until: .distantFuture, inMode: .eventTracking, dequeue: true) {
+            if next.type == .leftMouseUp {
+                placeInsertionCaret(for: event)
+                return
+            }
+            let p = next.locationInWindow
+            let intent = SectionDragMath.sectionGestureIntent(
+                button: button,
+                translationX: p.x - origin.x,
+                translationY: p.y - origin.y,
+                ended: false
+            )
+            if intent == .reorder {
+                beginSectionReorderDrag(id: sectionID, event: next)
+                return
+            }
+        }
+        placeInsertionCaret(for: event)
+    }
+
+    /// 没拖成重排时，仍把光标放到按下的字上。
+    private func placeInsertionCaret(for event: NSEvent) {
+        window?.makeFirstResponder(self)
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        let length = textStorage?.length ?? 0
+        let clamped = min(max(index, 0), length)
+        setSelectedRange(NSRange(location: clamped, length: 0))
+    }
+
+    /// 歌词缩影跟着光标。剪贴板只有段落类型，不附带纯文本编号。
+    private func beginSectionReorderDrag(id: UUID, event: NSEvent) {
+        let item = NSDraggingItem(pasteboardWriter: SectionIDPasteboardWriter(id: id))
+        let image = sectionReorderImage()
+        let point = convert(event.locationInWindow, from: nil)
+        item.setDraggingFrame(
+            NSRect(x: point.x + 8, y: point.y + 8, width: image.size.width, height: image.size.height),
+            contents: image
+        )
+        ReorderDragCenter.shared.beginSectionDrag(id: id)
+        beginDraggingSession(with: [item], event: event, source: self)
+    }
+
+    override func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        if let sectionReorderID, ReorderDragCenter.shared.isDraggingSection(sectionReorderID) {
+            return context == .outsideApplication ? [] : [.copy, .move]
+        }
+        return super.draggingSession(session, sourceOperationMaskFor: context)
+    }
+
+    override func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        if let sectionReorderID, ReorderDragCenter.shared.isDraggingSection(sectionReorderID) {
+            ReorderDragCenter.shared.updateSectionClaim(screenPoint: screenPoint)
+            return
+        }
+        super.draggingSession(session, movedTo: screenPoint)
+    }
+
+    override func draggingSession(
+        _ session: NSDraggingSession,
+        endedAt screenPoint: NSPoint,
+        operation: NSDragOperation
+    ) {
+        if let sectionReorderID, ReorderDragCenter.shared.isDraggingSection(sectionReorderID) {
+            ReorderDragCenter.shared.finishSectionDrag(screenPoint: screenPoint)
+            return
+        }
+        super.draggingSession(session, endedAt: screenPoint, operation: operation)
+    }
+
+    /// 跟光标走的歌词缩影：正文，不是曲目行的图标加标题。空歌词也留一个空框。
+    private func sectionReorderImage() -> NSImage {
+        let limited = string
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .prefix(8)
+            .joined(separator: "\n")
+        let font = NSFont.systemFont(ofSize: 12)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraph,
+        ]
+        let textWidth: CGFloat = 200
+        let measured = (limited as NSString).boundingRect(
+            with: NSSize(width: textWidth, height: 200),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attrs
+        )
+        let size = NSSize(width: 220, height: max(72, ceil(measured.height) + 16))
+        let image = NSImage(size: size)
+        image.lockFocus()
+        let rect = NSRect(origin: .zero, size: size)
+        NSColor.textBackgroundColor.setFill()
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 8, yRadius: 8)
+        path.fill()
+        NSColor.separatorColor.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+        if !limited.isEmpty {
+            (limited as NSString).draw(
+                with: NSRect(x: 10, y: 8, width: textWidth, height: size.height - 16),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: attrs
+            )
+        }
+        image.unlockFocus()
+        return image
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -1042,14 +1206,17 @@ final class PassthroughTextView: NSTextView {
         flushPendingEdits()
     }
 
-    /// 编辑事务里绝不能动模型：一旦触发 SwiftUI 更新 → applyRuby 重建富文本，
-    /// 文字系统的标记文本范围就失效了，下一次按键会抛
-    /// NSInvalidArgumentException: replaceCharactersInRange out of bounds，
-    /// 键盘输入整个卡死。所以这里只记录，等事务结束后的下一拍统一回报。
+    /// 编辑事务里绝不能动模型：一旦触发界面更新，注音会重建富文本，
+    /// 文字系统的标记范围就失效，下一次按键会因替换范围越界而卡死输入。
+    /// 所以这里只记录，等事务结束后的下一拍再统一回报。
     private var pendingEdits: [(range: NSRange, replacement: String, textBefore: String)] = []
     private var flushScheduled = false
 
     override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        // 拖放编号有时不走拖放回调，而在这里才变成要插入的字符串。
+        if let replacementString, SectionDragMath.isSectionIDPayload(replacementString) {
+            return false
+        }
         let allowed = super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
         if allowed {
             pendingEdits.append((affectedCharRange, replacementString ?? "", string))
@@ -1102,7 +1269,7 @@ final class PassthroughTextView: NSTextView {
         return intrinsicContentSize.height
     }
 
-    // v1.7.10 Extra: 拒绝段落拖动 payload（专用 UTType 或 UUID 字符串），避免把 section id 写入歌词。
+    // 进入、移动、准备放下、真正写下之前都问同一份判定。编号可能晚一点才变成字符串。
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         if Self.shouldRejectSectionDrag(sender) { return [] }
         return super.draggingEntered(sender)
@@ -1123,13 +1290,70 @@ final class PassthroughTextView: NSTextView {
         return super.performDragOperation(sender)
     }
 
+    override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        if Self.pasteboardCarriesSectionID(pboard, extraType: type) { return false }
+        return super.readSelection(from: pboard, type: type)
+    }
+
     static func shouldRejectSectionDrag(_ sender: NSDraggingInfo) -> Bool {
-        let pb = sender.draggingPasteboard
-        let typeIDs = (pb.types ?? []).map(\.rawValue)
-        let strings: [String] = {
-            if let one = pb.string(forType: .string) { return [one] }
-            return []
-        }()
+        pasteboardCarriesSectionID(sender.draggingPasteboard)
+    }
+
+    /// 只收集类型和字符串，收不收交给 SectionDragMath。
+    static func pasteboardCarriesSectionID(
+        _ pasteboard: NSPasteboard,
+        extraType: NSPasteboard.PasteboardType? = nil
+    ) -> Bool {
+        var typeIDs = (pasteboard.types ?? []).map(\.rawValue)
+        var strings: [String] = []
+        let stringTypes: [NSPasteboard.PasteboardType] = [
+            .string,
+            NSPasteboard.PasteboardType("public.utf8-plain-text"),
+            NSPasteboard.PasteboardType("public.plain-text"),
+            NSPasteboard.PasteboardType("NSStringPboardType"),
+            NSPasteboard.PasteboardType(SectionDragMath.sectionIDTypeIdentifier)
+        ]
+        func absorb(type: NSPasteboard.PasteboardType, string: String?, data: Data?) {
+            typeIDs.append(type.rawValue)
+            if let string { strings.append(string) }
+            if let data, let text = String(data: data, encoding: .utf8) {
+                strings.append(text)
+            }
+        }
+        if let extraType {
+            absorb(
+                type: extraType,
+                string: pasteboard.string(forType: extraType),
+                data: pasteboard.data(forType: extraType)
+            )
+        }
+        let items = pasteboard.pasteboardItems ?? []
+        if items.isEmpty {
+            for type in stringTypes {
+                absorb(
+                    type: type,
+                    string: pasteboard.string(forType: type),
+                    data: pasteboard.data(forType: type)
+                )
+            }
+        } else {
+            for item in items {
+                for type in item.types {
+                    absorb(
+                        type: type,
+                        string: item.string(forType: type),
+                        data: item.data(forType: type)
+                    )
+                }
+                for type in stringTypes where !item.types.contains(type) {
+                    absorb(
+                        type: type,
+                        string: item.string(forType: type),
+                        data: item.data(forType: type)
+                    )
+                }
+            }
+        }
         return SectionDragMath.shouldRejectLyricsDrop(
             pasteboardStrings: strings,
             pasteboardTypeIDs: typeIDs
@@ -1167,6 +1391,8 @@ struct PassthroughScrollTextEditor: View {
     var onSelectedRange: (NSRange) -> Void = { _ in }
     var onTextEdits: ([(range: NSRange, replacement: String)], String) -> Void = { _, _ in }
     var requestedSelection: Binding<NSRange?> = .constant(nil)
+    var yieldsSectionReorder: Bool = false
+    var sectionReorderID: UUID? = nil
     @State private var boxHeight: CGFloat = 120
 
     private var resolvedFontSize: CGFloat {
@@ -1186,6 +1412,8 @@ struct PassthroughScrollTextEditor: View {
             onSelectedRange: onSelectedRange,
             onTextEdits: onTextEdits,
             requestedSelection: requestedSelection,
+            yieldsSectionReorder: yieldsSectionReorder,
+            sectionReorderID: sectionReorderID,
             onFittedHeight: { h, animated in
                 let target = max(minHeight, h)
                 guard abs(target - boxHeight) > 1 else { return }
@@ -1230,6 +1458,8 @@ private struct PassthroughScrollTextEditorNS: NSViewRepresentable {
     var onSelectedRange: (NSRange) -> Void = { _ in }
     var onTextEdits: ([(range: NSRange, replacement: String)], String) -> Void = { _, _ in }
     var requestedSelection: Binding<NSRange?> = .constant(nil)
+    var yieldsSectionReorder: Bool = false
+    var sectionReorderID: UUID? = nil
     var onFittedHeight: (CGFloat, Bool) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -1258,6 +1488,8 @@ private struct PassthroughScrollTextEditorNS: NSViewRepresentable {
         textView.onRubyDelete = onRubyDelete
         textView.onSelectedRange = onSelectedRange
         textView.onTextEdits = onTextEdits
+        textView.yieldsSectionReorder = yieldsSectionReorder
+        textView.sectionReorderID = sectionReorderID
         let resolvedFont = NSFont.systemFont(ofSize: fontSize)
         textView.font = resolvedFont
         textView.typingAttributes = [
@@ -1302,6 +1534,8 @@ private struct PassthroughScrollTextEditorNS: NSViewRepresentable {
             passthrough.onRubyDelete = onRubyDelete
             passthrough.onSelectedRange = onSelectedRange
             passthrough.onTextEdits = onTextEdits
+            passthrough.yieldsSectionReorder = yieldsSectionReorder
+            passthrough.sectionReorderID = sectionReorderID
         }
         if let passthroughScroll = scrollView as? PassthroughScrollView {
             passthroughScroll.minEditorHeight = minHeight

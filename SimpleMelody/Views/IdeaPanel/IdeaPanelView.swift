@@ -1,4 +1,3 @@
-// Views/IdeaPanel/IdeaPanelView.swift
 // 灵感与设定分栏（独立于正文，不导出到歌词正文）
 
 import SwiftUI
@@ -30,8 +29,7 @@ struct IdeaPanelView: View {
                 ideaList
             }
         }
-        // v1.7.9 Delta+: panel 自身限定最小宽度 320（不被外层 NavigationSplitView 拖窄挤压）
-        .frame(minWidth: 320, idealWidth: 380, maxWidth: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(NSColor.controlBackgroundColor))
     }
 
@@ -277,7 +275,6 @@ private struct IdeaCard: View {
     }
 }
 
-// MARK: - Type Chip
 
 private struct TypeChip: View {
     let label: String

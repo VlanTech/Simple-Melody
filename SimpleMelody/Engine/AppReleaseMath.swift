@@ -1,16 +1,13 @@
-// Engine/AppReleaseMath.swift
-// v1.8.0: compare local vs GitHub release tags; parse releases/latest JSON.
-// UpdateChecker and tests call these; no live network in this file.
 
 import Foundation
 
 enum AppReleaseMath {
-    static let displayVersion = "v1.8.3"
-    static let marketingVersion = "1.8.3"
+    static let displayVersion = "v1.8.4"
+    static let marketingVersion = "1.8.4"
     static let githubLatestURL = "https://api.github.com/repos/VlanTech/Simple-Melody/releases/latest"
     static let downloadPageURL = "https://github.com/VlanTech/Simple-Melody"
 
-    /// Numeric parts of "v1.7.10 Extra" / "1.8.0" / "v1.7.9 GT5" — letter suffixes ignored.
+    /// 只取数字段，字母后缀忽略。例如 v1.7.10 Extra、1.8.0、v1.7.9 GT5。
     static func numericComponents(_ raw: String) -> [Int] {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.first == "v" || s.first == "V" {
@@ -28,7 +25,7 @@ enum AppReleaseMath {
         return num.split(separator: ".").compactMap { Int($0) }
     }
 
-    /// -1 local < remote, 0 equal, 1 local > remote.
+    /// 返回 -1 表示本地更旧，0 表示相等，1 表示本地更新。
     static func compare(local: String, remote: String) -> Int {
         let a = numericComponents(local)
         let b = numericComponents(remote)
@@ -48,7 +45,7 @@ enum AppReleaseMath {
         case invalid
     }
 
-    /// Launch popup only when this returns `updateAvailable`.
+    /// 只有返回 updateAvailable 时，启动才弹出更新提示。
     static func decision(local: String, remoteTag: String?) -> Decision {
         guard let remote = remoteTag?.trimmingCharacters(in: .whitespacesAndNewlines),
               !remote.isEmpty,

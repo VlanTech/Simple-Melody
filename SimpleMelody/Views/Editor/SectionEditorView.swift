@@ -1,4 +1,3 @@
-// Views/Editor/SectionEditorView.swift
 // 段落编辑器
 // v1.4: 段落笔记放在注音列表旁边（横向并排）
 
@@ -40,13 +39,7 @@ struct SectionEditorView: View {
     var preset: SectionTypePreset? { section.preset }
 
     var body: some View {
-        // v1.7.9 Test: 恢复 v1.7.8 Delta 二进制反汇编确认的 body 设计
-        //   - body level if-else 两侧挂 transition（`_ConditionalContent<sectionBody, Color.clear>`）
-        //   - button action 内部用 withAnimation { state.toggle() } 触发动画（demangle `_yXEfU_` 后缀证明）
-        //   - 不加 view-level .animation(_:value:)，靠 SwiftUI 14+ 隐式 transition + withAnimation 组合
-        // v1.7.8 Delta 二进制反汇编：
-        //   - body = `TupleView<(sectionHeader, (sectionBody)?)>`  = VStack<...> 内 if-else 切整个 sectionBody
-        //   - sectionBody 内部 HStack 第二个 view 是 `(transition)?` = notesPanel if-else + Optional transition
+        // 折叠的两侧都挂同一段过渡，靠动画事务驱动。
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader
             if !section.isCollapsed {
@@ -63,7 +56,7 @@ struct SectionEditorView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.clear)  // v1.7.3 Gamma: 删除系统色填充，保持透明
+                .fill(Color.clear)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -85,16 +78,13 @@ struct SectionEditorView: View {
                 )
         )
         .contentShape(Rectangle())
-        // v1.7.9 Test: 段落拖动改用父 ScrollView + LazyVStack + .draggable（v1.7.8 Delta 风格）
-        // 之前 v1.7.9 Beta+ 的 List + .onMove + 段落拖动开关删除——开关 + List 模式 + PassthroughScrollTextEditor 三方冲突
-        .onTapGesture {
-            // v1.7: 点段落任意位置激活
+        // 点按和拖动同时认。独占的点按会把外层段落拖动吃掉。
+        .simultaneousGesture(TapGesture().onEnded {
             if activeSectionID != section.id {
-                // v1.7.9 Delta+: 用户主动点段落 → 允许下一次 activeSectionID 变化触发 TextEditor 聚焦
                 focusBodyOnNextSectionChange = true
                 activeSectionID = section.id
             }
-        }
+        })
         // v1.7.2: 只有"我刚刚被设为激活"的那一段才闪烁（不再所有段落一起闪）
         .onChange(of: activeSectionID) { oldValue, newValue in
             let wasMine = (oldValue == section.id)
@@ -105,11 +95,11 @@ struct SectionEditorView: View {
         }
         .contextMenu {
             // v1.7.8 Delta: 上移至顶部 + 上移
-            Button(L("上移至顶部"), systemImage: "arrow.up.to.line") { moveToTop() }
-            Button(L("上移"), systemImage: "arrow.up") { moveUp() }
+            Button(L("上移至顶部"), systemImage: "arrow.up.to.line") { moveSection(.top) }
+            Button(L("上移"), systemImage: "arrow.up") { moveSection(.up) }
             // v1.7.8 Delta: 下移 + 下移至底部
-            Button(L("下移"), systemImage: "arrow.down") { moveDown() }
-            Button(L("下移至底部"), systemImage: "arrow.down.to.line") { moveToBottom() }
+            Button(L("下移"), systemImage: "arrow.down") { moveSection(.down) }
+            Button(L("下移至底部"), systemImage: "arrow.down.to.line") { moveSection(.bottom) }
             Divider()
             Button(L("复制段落"), systemImage: "doc.on.doc") { duplicate() }
             Divider()
@@ -416,50 +406,22 @@ struct SectionEditorView: View {
 
     // MARK: 操作
 
-    private func moveUp() {
+    /// 右键上下移动。顺序先算好，再在移动动画里写回，列表项身份仍是段落自己。
+    private func moveSection(_ move: SectionDragMath.SectionOrderMove) {
         guard let song = section.song else { return }
         let ordered = song.orderedSections
-        guard let idx = ordered.firstIndex(of: section), idx > 0 else { return }
-        ordered[idx].order = idx - 1
-        ordered[idx - 1].order = idx
-        try? context.save()
-    }
-
-    private func moveDown() {
-        guard let song = section.song else { return }
-        let ordered = song.orderedSections
-        guard let idx = ordered.firstIndex(of: section), idx < ordered.count - 1 else { return }
-        ordered[idx].order = idx + 1
-        ordered[idx + 1].order = idx
-        try? context.save()
-    }
-
-    // v1.7.8 Delta: 上移至顶部
-    private func moveToTop() {
-        guard let song = section.song else { return }
-        let ordered = song.orderedSections
-        guard let idx = ordered.firstIndex(of: section), idx > 0 else { return }
-        section.order = -1  // 临时设为最小，触发 SwiftData 排序刷新
-        // 重新整理所有 order
-        var newOrder = ordered.filter { $0.id != section.id }
-        newOrder.insert(section, at: 0)
-        for (i, s) in newOrder.enumerated() {
-            s.order = i
+        guard let newIDs = SectionDragMath.sectionIDs(
+            after: move,
+            orderedIDs: ordered.map(\.id),
+            movingID: section.id
+        ) else { return }
+        let byID = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            for (index, id) in newIDs.enumerated() {
+                byID[id]?.order = index
+            }
+            try? context.save()
         }
-        try? context.save()
-    }
-
-    // v1.7.8 Delta: 下移至底部
-    private func moveToBottom() {
-        guard let song = section.song else { return }
-        let ordered = song.orderedSections
-        guard let idx = ordered.firstIndex(of: section), idx < ordered.count - 1 else { return }
-        var newOrder = ordered.filter { $0.id != section.id }
-        newOrder.append(section)
-        for (i, s) in newOrder.enumerated() {
-            s.order = i
-        }
-        try? context.save()
     }
 
     private func duplicate() {

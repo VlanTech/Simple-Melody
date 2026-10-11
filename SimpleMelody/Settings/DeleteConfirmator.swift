@@ -1,4 +1,3 @@
-// Settings/DeleteConfirmator.swift
 // 删除确认弹窗（统一入口，可被 AppSettings.confirmBeforeDelete 关闭）
 
 import SwiftUI
@@ -7,7 +6,6 @@ import AppKit
 /// 删除确认器
 enum DeleteConfirmator {
     /// 弹出删除确认窗口，根据 AppSettings.confirmBeforeDelete 决定是否弹窗
-    /// - Parameters:
     ///   - title: 删除目标名称（歌曲标题 / 段落类型 / 灵感类型）
     ///   - message: 详细说明
     /// - Returns: true 表示确认删除
@@ -39,7 +37,7 @@ enum DeleteConfirmator {
         return response == .alertFirstButtonReturn
     }
 
-    /// Single-song trash copy: 段落 + 灵感与设定 + 译文.
+    /// 单曲移入回收站的说明：段落、灵感与设定、译文。
     static func singleSongTrashMessage(sectionCount: Int, ideaCount: Int, translations: [String]) -> String {
         let line = SongDeleteSummary.formatCountsLine(
             sectionCount: sectionCount,
